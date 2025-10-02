@@ -1,0 +1,17 @@
+.env
+*.env
+!.env.example
+.dart_tool/
+.packages
+build/
+pubspec.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+.vscode/
+.idea/
+*.iml
+.DS_Store
+*.db
+postgres_data/
+*.log
+node_modules/
