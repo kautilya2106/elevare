@@ -83,6 +83,26 @@ class _TemplatesPageState extends State<TemplatesPage> {
   }
   
   Widget _buildTemplateGrid() {
+    final filteredTemplates = _selectedCategory == 'All'
+        ? _templates
+        : _templates.where((template) => template['category'] == _selectedCategory).toList();
+    
+    if (filteredTemplates.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+            SizedBox(height: 16),
+            Text(
+              'No templates found in this category',
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      );
+    }
+    
     return GridView.builder(
       padding: EdgeInsets.all(20),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -91,8 +111,8 @@ class _TemplatesPageState extends State<TemplatesPage> {
         mainAxisSpacing: 20,
         childAspectRatio: 0.75,
       ),
-      itemCount: _templates.length,
-      itemBuilder: (context, index) => _buildTemplateCard(_templates[index]),
+      itemCount: filteredTemplates.length,
+      itemBuilder: (context, index) => _buildTemplateCard(filteredTemplates[index]),
     );
   }
   

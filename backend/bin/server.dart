@@ -100,9 +100,179 @@ class Database {
       )
     ''');
     
-    await _connection!.execute('''
+      await _connection!.execute('''
       CREATE INDEX IF NOT EXISTS idx_analytics_portfolio ON analytics(portfolio_id, created_at)
     ''');
+    
+    await _seedTemplates();
+  }
+  
+  static Future<void> _seedTemplates() async {
+    // Check if templates already exist
+    final checkResult = await _connection!.execute('SELECT COUNT(*) as count FROM templates');
+    final count = checkResult.first.toColumnMap()['count'] as int;
+    if (count > 0) {
+      return; // Templates already seeded
+    }
+    
+    final templates = [
+      {
+        'id': Uuid().v4(),
+        'name': 'Modern Minimal',
+        'description': 'Clean and contemporary design with plenty of white space. Perfect for showcasing your work with elegance.',
+        'category': 'Minimal',
+        'is_featured': true,
+        'downloads': 1250,
+        'content': json.encode({
+          'sections': ['about', 'projects', 'skills', 'contact'],
+          'about': {'title': 'About Me', 'text': 'I am a passionate developer and designer...'},
+          'projects': {'title': 'Projects', 'items': []},
+          'skills': {'title': 'Skills', 'items': []},
+          'contact': {'title': 'Contact', 'email': '', 'phone': '', 'location': ''},
+        }),
+      },
+      {
+        'id': Uuid().v4(),
+        'name': 'Creative Portfolio',
+        'description': 'Bold and vibrant template for creative professionals. Stand out with colorful sections and dynamic layouts.',
+        'category': 'Creative',
+        'is_featured': true,
+        'downloads': 980,
+        'content': json.encode({
+          'sections': ['about', 'projects', 'skills', 'experience', 'contact'],
+          'about': {'title': 'About Me', 'text': 'Creative professional with a passion for innovation...'},
+          'projects': {'title': 'Featured Work', 'items': []},
+          'skills': {'title': 'Expertise', 'items': []},
+          'experience': {'title': 'Experience', 'text': 'Add your professional experience here...'},
+          'contact': {'title': 'Get In Touch', 'email': '', 'phone': '', 'location': ''},
+        }),
+      },
+      {
+        'id': Uuid().v4(),
+        'name': 'Professional Classic',
+        'description': 'Timeless professional template ideal for business professionals and consultants.',
+        'category': 'Professional',
+        'is_featured': false,
+        'downloads': 750,
+        'content': json.encode({
+          'sections': ['about', 'experience', 'education', 'skills', 'contact'],
+          'about': {'title': 'About', 'text': 'Experienced professional with a proven track record...'},
+          'experience': {'title': 'Professional Experience', 'text': 'Add your work history here...'},
+          'education': {'title': 'Education', 'text': 'List your educational background...'},
+          'skills': {'title': 'Core Competencies', 'items': []},
+          'contact': {'title': 'Contact Information', 'email': '', 'phone': '', 'location': ''},
+        }),
+      },
+      {
+        'id': Uuid().v4(),
+        'name': 'Tech Innovator',
+        'description': 'Modern tech-focused template with sleek design. Perfect for developers and tech entrepreneurs.',
+        'category': 'Modern',
+        'is_featured': true,
+        'downloads': 1100,
+        'content': json.encode({
+          'sections': ['about', 'projects', 'skills', 'blog', 'contact'],
+          'about': {'title': 'About', 'text': 'Tech enthusiast and problem solver...'},
+          'projects': {'title': 'Projects & Products', 'items': []},
+          'skills': {'title': 'Technologies', 'items': []},
+          'blog': {'title': 'Latest Articles', 'text': 'Share your thoughts and insights...'},
+          'contact': {'title': 'Connect', 'email': '', 'phone': '', 'location': ''},
+        }),
+      },
+      {
+        'id': Uuid().v4(),
+        'name': 'Artist Showcase',
+        'description': 'Beautiful template designed for artists, photographers, and visual creators.',
+        'category': 'Creative',
+        'is_featured': false,
+        'downloads': 650,
+        'content': json.encode({
+          'sections': ['about', 'gallery', 'exhibitions', 'contact'],
+          'about': {'title': 'About the Artist', 'text': 'Passionate about creating visual stories...'},
+          'gallery': {'title': 'Portfolio Gallery', 'items': []},
+          'exhibitions': {'title': 'Exhibitions & Shows', 'text': 'List your exhibitions and shows...'},
+          'contact': {'title': 'Commission Inquiry', 'email': '', 'phone': '', 'location': ''},
+        }),
+      },
+      {
+        'id': Uuid().v4(),
+        'name': 'Startup Founder',
+        'description': 'Dynamic template for entrepreneurs and startup founders to showcase their journey.',
+        'category': 'Modern',
+        'is_featured': false,
+        'downloads': 520,
+        'content': json.encode({
+          'sections': ['about', 'startup', 'achievements', 'contact'],
+          'about': {'title': 'Founder Story', 'text': 'Building the future, one idea at a time...'},
+          'startup': {'title': 'The Startup', 'text': 'Tell your startup story...'},
+          'achievements': {'title': 'Milestones', 'items': []},
+          'contact': {'title': 'Let\'s Connect', 'email': '', 'phone': '', 'location': ''},
+        }),
+      },
+      {
+        'id': Uuid().v4(),
+        'name': 'Academic Scholar',
+        'description': 'Clean and structured template perfect for researchers, academics, and scholars.',
+        'category': 'Professional',
+        'is_featured': false,
+        'downloads': 430,
+        'content': json.encode({
+          'sections': ['about', 'research', 'publications', 'education', 'contact'],
+          'about': {'title': 'About', 'text': 'Researcher and academic with expertise in...'},
+          'research': {'title': 'Research Interests', 'text': 'Describe your research focus...'},
+          'publications': {'title': 'Publications', 'items': []},
+          'education': {'title': 'Education', 'text': 'Academic qualifications...'},
+          'contact': {'title': 'Contact', 'email': '', 'phone': '', 'location': ''},
+        }),
+      },
+      {
+        'id': Uuid().v4(),
+        'name': 'Design Studio',
+        'description': 'Sophisticated template for design agencies and creative studios.',
+        'category': 'Creative',
+        'is_featured': false,
+        'downloads': 890,
+        'content': json.encode({
+          'sections': ['about', 'services', 'portfolio', 'team', 'contact'],
+          'about': {'title': 'About Us', 'text': 'A creative studio specializing in...'},
+          'services': {'title': 'Our Services', 'items': []},
+          'portfolio': {'title': 'Our Work', 'items': []},
+          'team': {'title': 'The Team', 'text': 'Meet our talented team...'},
+          'contact': {'title': 'Work With Us', 'email': '', 'phone': '', 'location': ''},
+        }),
+      },
+      {
+        'id': Uuid().v4(),
+        'name': 'Ultra Minimal',
+        'description': 'Extremely clean and minimal design. Less is more with this elegant template.',
+        'category': 'Minimal',
+        'is_featured': false,
+        'downloads': 720,
+        'content': json.encode({
+          'sections': ['about', 'work', 'contact'],
+          'about': {'title': 'About', 'text': 'Simple. Elegant. Effective.'},
+          'work': {'title': 'Work', 'items': []},
+          'contact': {'title': 'Contact', 'email': '', 'phone': '', 'location': ''},
+        }),
+      },
+    ];
+    
+    for (final template in templates) {
+      await _connection!.execute(
+        '''INSERT INTO templates (id, name, description, category, content, is_featured, is_approved, downloads)
+           VALUES (\$1, \$2, \$3, \$4, \$5, \$6, true, \$7)
+           ON CONFLICT (id) DO NOTHING''',
+        parameters: [
+          template['id'],
+          template['name'],
+          template['description'],
+          template['category'],
+          template['content'],
+          template['is_featured'],
+          template['downloads'],
+        ],
+      );
+    }
   }
 }
 
