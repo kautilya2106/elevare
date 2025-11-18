@@ -1,8 +1,10 @@
 // lib/screens/dashboard_page.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../services/theme_service.dart';
 
 class DashboardPage extends StatefulWidget {
   @override
@@ -41,6 +43,23 @@ class _DashboardPageState extends State<DashboardPage> {
         title: Text('Dashboard'),
         backgroundColor: Color(0xFF667eea),
         actions: [
+          Consumer<ThemeService>(
+            builder: (context, themeService, child) {
+              return IconButton(
+                icon: Icon(
+                  themeService.isDarkMode(context) 
+                      ? Icons.light_mode 
+                      : Icons.dark_mode,
+                ),
+                tooltip: 'Toggle Theme',
+                onPressed: () => themeService.toggleTheme(),
+              );
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.settings),
+            onPressed: () => Navigator.pushNamed(context, '/settings'),
+          ),
           IconButton(
             icon: Icon(Icons.person),
             onPressed: () => _showProfileMenu(context),
@@ -118,7 +137,7 @@ class _DashboardPageState extends State<DashboardPage> {
           ListTile(
             leading: Icon(Icons.settings),
             title: Text('Settings'),
-            onTap: () {},
+            onTap: () => Navigator.pushNamed(context, '/settings'),
           ),
         ],
       ),
@@ -177,12 +196,21 @@ class _DashboardPageState extends State<DashboardPage> {
   }
   
   Widget _buildPortfolioCard(Map<String, dynamic> portfolio) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        onTap: () => Navigator.pushNamed(context, '/builder', arguments: portfolio['id']),
-        borderRadius: BorderRadius.circular(16),
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: value,
+          child: Opacity(
+            opacity: value,
+            child: Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: InkWell(
+                onTap: () => Navigator.pushNamed(context, '/builder', arguments: portfolio['id']),
+                borderRadius: BorderRadius.circular(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -232,11 +260,48 @@ class _DashboardPageState extends State<DashboardPage> {
                     'Updated ${_formatDate(portfolio['updatedAt'])}',
                     style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
+                  if (portfolio['isPublished']) ...[
+                    SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _copyPortfolioLink(portfolio['slug']),
+                        icon: Icon(Icons.link, size: 16),
+                        label: Text('Copy Link'),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
           ],
         ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+  
+  void _copyPortfolioLink(String slug) {
+    final link = 'elevare.com/p/$slug';
+    Clipboard.setData(ClipboardData(text: link));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 8),
+            Expanded(child: Text('Link copied to clipboard!')),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
