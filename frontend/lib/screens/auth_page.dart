@@ -2,6 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../widgets/logo_widget.dart';
+import '../widgets/monkey_password_field.dart';
+import '../theme/app_colors.dart';
 
 class AuthPage extends StatefulWidget {
   @override
@@ -16,38 +19,31 @@ class _AuthPageState extends State<AuthPage> {
   final _usernameController = TextEditingController();
   final _fullNameController = TextEditingController();
   bool _isLoading = false;
+  bool _hasPasswordError = false;
   
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-          ),
+          gradient: AppColors.professionalGradient,
         ),
         child: Center(
           child: Container(
             width: 450,
             padding: EdgeInsets.all(40),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 30,
-                  offset: Offset(0, 15),
-                ),
-              ],
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: AppColors.elevatedShadow,
             ),
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  LogoWidget(fontSize: 32, showTagline: false),
+                  SizedBox(height: 32),
                   Text(
                     isLogin ? 'Welcome Back' : 'Create Account',
                     style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
@@ -85,15 +81,18 @@ class _AuthPageState extends State<AuthPage> {
                     validator: (v) => v!.isEmpty || !v.contains('@') ? 'Invalid email' : null,
                   ),
                   SizedBox(height: 16),
-                  TextFormField(
+                  MonkeyPasswordField(
                     controller: _passwordController,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      prefixIcon: Icon(Icons.lock),
-                    ),
-                    obscureText: true,
-                    validator: (v) => v!.length < 6 ? 'Min 6 characters' : null,
+                    hasError: _hasPasswordError,
+                    validator: (v) {
+                      if (v == null || v.isEmpty) {
+                        return 'Password is required';
+                      }
+                      if (v.length < 6) {
+                        return 'Min 6 characters';
+                      }
+                      return null;
+                    },
                   ),
                   SizedBox(height: 24),
                   _isLoading
@@ -101,9 +100,10 @@ class _AuthPageState extends State<AuthPage> {
                       : ElevatedButton(
                           onPressed: _handleSubmit,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFF667eea),
-                            foregroundColor: Colors.white,
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.white,
                             minimumSize: Size(double.infinity, 50),
+                            elevation: 2,
                           ),
                           child: Text(isLogin ? 'Login' : 'Register', style: TextStyle(fontSize: 18)),
                         ),
@@ -112,7 +112,7 @@ class _AuthPageState extends State<AuthPage> {
                     onPressed: () => setState(() => isLogin = !isLogin),
                     child: Text(
                       isLogin ? 'Need an account? Register' : 'Have an account? Login',
-                      style: TextStyle(color: Color(0xFF667eea)),
+                      style: TextStyle(color: AppColors.primary),
                     ),
                   ),
                 ],
@@ -127,7 +127,10 @@ class _AuthPageState extends State<AuthPage> {
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
     
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _hasPasswordError = false;
+    });
     
     final authService = Provider.of<AuthService>(context, listen: false);
     bool success;
@@ -148,9 +151,19 @@ class _AuthPageState extends State<AuthPage> {
     if (success) {
       Navigator.pushReplacementNamed(context, '/dashboard');
     } else {
+      setState(() => _hasPasswordError = true);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Authentication failed')),
+        SnackBar(
+          content: Text('Authentication failed'),
+          backgroundColor: Colors.red,
+        ),
       );
+      // Reset error after animation
+      Future.delayed(Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() => _hasPasswordError = false);
+        }
+      });
     }
   }
 }

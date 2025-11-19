@@ -511,6 +511,86 @@ class PortfolioHandler {
     }
   }
   
+  static Future<Response> getById(Request request, String id) async {
+    try {
+      final userId = request.context['userId'] as String;
+      final conn = await Database.connection;
+      
+      final result = await conn.execute(
+        'SELECT * FROM portfolios WHERE id = \$1 AND user_id = \$2',
+        parameters: [id, userId],
+      );
+      
+      if (result.isEmpty) {
+        return Response.notFound(json.encode({'error': 'Portfolio not found or access denied'}));
+      }
+      
+      final data = result.first.toColumnMap();
+      
+      // Handle content - it might be a String (JSON) or already decoded Map
+      dynamic content;
+      if (data['content'] is String) {
+        content = json.decode(data['content'] as String);
+      } else {
+        content = data['content']; // Already decoded
+      }
+      
+      return Response.ok(json.encode({
+        'id': data['id'],
+        'title': data['title'],
+        'slug': data['slug'],
+        'content': content,
+        'isPublished': data['is_published'],
+        'theme': data['theme'],
+        'createdAt': data['created_at'].toString(),
+        'updatedAt': data['updated_at'].toString(),
+      }), headers: {'Content-Type': 'application/json'});
+    } catch (e) {
+      return Response.internalServerError(body: json.encode({'error': 'Failed to fetch portfolio: ${e.toString()}'}));
+    }
+  }
+  
+  static Future<Response> update(Request request, String id) async {
+    try {
+      final userId = request.context['userId'] as String;
+      final body = json.decode(await request.readAsString()) as Map<String, dynamic>;
+      
+      final title = body['title']?.toString();
+      final slug = body['slug']?.toString().trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9-]'), '-');
+      final content = body['content'] ?? {};
+      
+      if (title == null || slug == null) {
+        return Response.badRequest(body: json.encode({'error': 'Missing required fields'}));
+      }
+      
+      final conn = await Database.connection;
+      
+      // Check ownership
+      final ownership = await conn.execute(
+        'SELECT id FROM portfolios WHERE id = \$1 AND user_id = \$2',
+        parameters: [id, userId],
+      );
+      
+      if (ownership.isEmpty) {
+        return Response.forbidden(json.encode({'error': 'Access denied'}));
+      }
+      
+      await conn.execute(
+        'UPDATE portfolios SET title = \$1, slug = \$2, content = \$3, updated_at = CURRENT_TIMESTAMP WHERE id = \$4 AND user_id = \$5',
+        parameters: [title, slug, json.encode(content), id, userId],
+      );
+      
+      return Response.ok(json.encode({
+        'id': id,
+        'title': title,
+        'slug': slug,
+        'content': content,
+      }), headers: {'Content-Type': 'application/json'});
+    } catch (e) {
+      return Response.internalServerError(body: json.encode({'error': 'Failed to update portfolio: ${e.toString()}'}));
+    }
+  }
+  
   static Future<Response> getBySlug(Request request, String slug) async {
     try {
       final conn = await Database.connection;
@@ -526,6 +606,14 @@ class PortfolioHandler {
       }
       
       final data = result.first.toColumnMap();
+      
+      // Handle content - it might be a String (JSON) or already decoded Map
+      dynamic content;
+      if (data['content'] is String) {
+        content = json.decode(data['content'] as String);
+      } else {
+        content = data['content']; // Already decoded
+      }
       
       // Track view
       final analyticsId = Uuid().v4();
@@ -548,7 +636,7 @@ class PortfolioHandler {
         'id': data['id'],
         'title': data['title'],
         'slug': data['slug'],
-        'content': json.decode(data['content'] as String),
+        'content': content,
         'theme': data['theme'],
         'author': {
           'username': data['username'],
@@ -573,6 +661,33 @@ class PortfolioHandler {
       return Response.ok(json.encode({'message': 'Portfolio published'}), headers: {'Content-Type': 'application/json'});
     } catch (e) {
       return Response.internalServerError(body: json.encode({'error': 'Failed to publish portfolio'}));
+    }
+  }
+  
+  static Future<Response> delete(Request request, String id) async {
+    try {
+      final userId = request.context['userId'] as String;
+      final conn = await Database.connection;
+      
+      // Check ownership
+      final ownership = await conn.execute(
+        'SELECT id FROM portfolios WHERE id = \$1 AND user_id = \$2',
+        parameters: [id, userId],
+      );
+      
+      if (ownership.isEmpty) {
+        return Response.forbidden(json.encode({'error': 'Access denied'}));
+      }
+      
+      // Delete the portfolio (CASCADE will handle related analytics)
+      await conn.execute(
+        'DELETE FROM portfolios WHERE id = \$1 AND user_id = \$2',
+        parameters: [id, userId],
+      );
+      
+      return Response.ok(json.encode({'message': 'Portfolio deleted successfully'}), headers: {'Content-Type': 'application/json'});
+    } catch (e) {
+      return Response.internalServerError(body: json.encode({'error': 'Failed to delete portfolio: ${e.toString()}'}));
     }
   }
 }
@@ -654,10 +769,29 @@ void main() async {
   // Portfolio routes
   router.post('/api/portfolios', Pipeline().addMiddleware(authMiddleware()).addHandler(PortfolioHandler.create));
   router.get('/api/portfolios', Pipeline().addMiddleware(authMiddleware()).addHandler(PortfolioHandler.list));
+  router.get('/api/portfolios/id/<id>', Pipeline().addMiddleware(authMiddleware()).addHandler((Request request) {
+    // Path will be: /api/portfolios/id/{uuid}
+    // Extract ID from the last path segment
+    final pathSegments = request.url.pathSegments;
+    final id = pathSegments.isNotEmpty ? pathSegments.last : '';
+    if (id.isEmpty) {
+      return Response.badRequest(body: json.encode({'error': 'Portfolio ID is required'}));
+    }
+    return PortfolioHandler.getById(request, id);
+  }));
+  router.put('/api/portfolios/<id>', Pipeline().addMiddleware(authMiddleware()).addHandler((Request request) {
+    final id = request.url.pathSegments.last;
+    return PortfolioHandler.update(request, id);
+  }));
   router.get('/api/portfolios/<slug>', (Request request, String slug) => PortfolioHandler.getBySlug(request, slug));
   router.post('/api/portfolios/<id>/publish', Pipeline().addMiddleware(authMiddleware()).addHandler((Request request) {
-    final id = request.url.pathSegments.last;
+    final pathSegments = request.url.pathSegments;
+    final id = pathSegments[pathSegments.length - 2]; // Get ID before 'publish'
     return PortfolioHandler.publish(request, id);
+  }));
+  router.delete('/api/portfolios/<id>', Pipeline().addMiddleware(authMiddleware()).addHandler((Request request) {
+    final id = request.url.pathSegments.last;
+    return PortfolioHandler.delete(request, id);
   }));
   
   // Template routes
