@@ -1,6 +1,8 @@
 // lib/screens/landing_page.dart
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../widgets/logo_widget.dart';
+import '../theme/app_colors.dart';
 
 class LandingPage extends StatefulWidget {
   @override
@@ -38,10 +40,13 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
       body: SingleChildScrollView(
         child: Column(
           children: [
+            _buildHeader(),
             _buildHeroSection(),
             _buildHowItWorks(),
             _buildTemplatePreview(),
             _buildTestimonials(),
+            _buildAboutUs(),
+            _buildContact(),
             _buildFAQ(),
             _buildFooter(),
           ],
@@ -50,19 +55,47 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
     );
   }
   
+  Widget _buildHeader() {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          LogoWidget(fontSize: 28, showTagline: false),
+          Row(
+            children: [
+              TextButton(
+                onPressed: () => Navigator.pushNamed(context, '/templates'),
+                child: Text('Templates', style: TextStyle(fontSize: 16)),
+              ),
+              SizedBox(width: 16),
+              OutlinedButton(
+                onPressed: () => Navigator.pushNamed(context, '/auth'),
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                child: Text('Sign In'),
+              ),
+              SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: () => Navigator.pushNamed(context, '/auth'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                child: Text('Get Started'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
   Widget _buildHeroSection() {
     return Container(
       height: 900,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF667eea),
-            Color(0xFF764ba2),
-            Color(0xFFf093fb),
-          ],
-        ),
+        gradient: AppColors.professionalGradient,
       ),
       child: Stack(
         children: [
@@ -157,6 +190,8 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                LogoWidget(fontSize: 64, showTagline: false, color: Colors.white),
+                SizedBox(height: 32),
                 Text(
                   'Elevate Your Portfolio',
                   style: TextStyle(
@@ -201,13 +236,13 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                     child: ElevatedButton(
                       onPressed: () => Navigator.pushNamed(context, '/auth'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Color(0xFF667eea),
+                        backgroundColor: AppColors.white,
+                        foregroundColor: AppColors.primary,
                         padding: EdgeInsets.symmetric(horizontal: 60, vertical: 24),
-                        elevation: 12,
-                        shadowColor: Colors.black38,
+                        elevation: 8,
+                        shadowColor: Colors.black.withOpacity(0.2),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: Row(
@@ -284,9 +319,7 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-              ),
+                      gradient: AppColors.professionalGradient,
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: Colors.white, size: 40),
@@ -360,9 +393,7 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
               Container(
                 height: 280,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                  ),
+                      gradient: AppColors.professionalGradient,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                 ),
                 child: Center(
@@ -488,11 +519,11 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
       width: 350,
       padding: EdgeInsets.all(40),
       decoration: BoxDecoration(
-        color: highlighted ? Color(0xFF667eea) : Colors.white,
+                    color: highlighted ? AppColors.primary : AppColors.white,
         borderRadius: BorderRadius.circular(20),
         border: highlighted ? null : Border.all(color: Colors.grey[300]!),
         boxShadow: highlighted
-            ? [BoxShadow(color: Color(0xFF667eea).withOpacity(0.3), blurRadius: 30, offset: Offset(0, 15))]
+            ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 30, offset: Offset(0, 15))]
             : [BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, 10))],
       ),
       child: Column(
@@ -541,7 +572,7 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                   children: [
                     Icon(
                       Icons.check_circle,
-                      color: highlighted ? Colors.white : Color(0xFF667eea),
+                      color: highlighted ? AppColors.white : AppColors.primary,
                       size: 20,
                     ),
                     SizedBox(width: 12),
@@ -559,14 +590,250 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
           ElevatedButton(
             onPressed: () => Navigator.pushNamed(context, '/auth'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: highlighted ? Colors.white : Color(0xFF667eea),
-              foregroundColor: highlighted ? Color(0xFF667eea) : Colors.white,
+              backgroundColor: highlighted ? AppColors.white : AppColors.primary,
+              foregroundColor: highlighted ? AppColors.primary : AppColors.white,
               padding: EdgeInsets.symmetric(horizontal: 48, vertical: 16),
             ),
             child: Text('Get Started', style: TextStyle(fontSize: 18)),
           ),
         ],
       ),
+    );
+  }
+  
+  Widget _buildAboutUs() {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 80, horizontal: 40),
+      color: Colors.grey[50],
+      child: Container(
+        constraints: BoxConstraints(maxWidth: 1200),
+        child: Column(
+          children: [
+            Text(
+              'About Us',
+              style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 40),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                      gradient: AppColors.professionalGradient,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Icon(Icons.rocket_launch, size: 80, color: Colors.white),
+                      ),
+                      SizedBox(height: 24),
+                      Text(
+                        'Our Mission',
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'At Elevare, we believe everyone deserves a beautiful portfolio to showcase their work. Our mission is to democratize portfolio creation by providing a free, easy-to-use platform that empowers creators, developers, designers, and professionals to build stunning portfolios without any technical knowledge.',
+                        style: TextStyle(fontSize: 16, color: Colors.grey[700], height: 1.6),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 40),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.primaryDark, AppColors.secondary],
+                  ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Icon(Icons.favorite, size: 80, color: Colors.white),
+                      ),
+                      SizedBox(height: 24),
+                      Text(
+                        'Why Elevare?',
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'We\'re committed to keeping Elevare 100% free forever. No hidden costs, no premium tiers, no credit card required. We provide all features, all templates, and unlimited portfolios to everyone. Your success is our success, and we\'re here to help you elevate your professional presence.',
+                        style: TextStyle(fontSize: 16, color: Colors.grey[700], height: 1.6),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 40),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.secondary, AppColors.primary],
+                  ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Icon(Icons.people, size: 80, color: Colors.white),
+                      ),
+                      SizedBox(height: 24),
+                      Text(
+                        'Our Community',
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Join thousands of creators who trust Elevare to showcase their work. From developers and designers to photographers and writers, our platform serves professionals across all industries. We\'re constantly improving based on your feedback.',
+                        style: TextStyle(fontSize: 16, color: Colors.grey[700], height: 1.6),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildContact() {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 80, horizontal: 40),
+      child: Container(
+        constraints: BoxConstraints(maxWidth: 800),
+        child: Column(
+          children: [
+            Text(
+              'Get In Touch',
+              style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Have questions or feedback? We\'d love to hear from you!',
+              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 60),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildContactCard(
+                  icon: Icons.email,
+                  title: 'Email Us',
+                  subtitle: 'support@elevare.com',
+                  color: AppColors.primary,
+                ),
+                SizedBox(width: 40),
+                _buildContactCard(
+                  icon: Icons.chat_bubble,
+                  title: 'Live Chat',
+                  subtitle: 'Available 24/7',
+                  color: AppColors.primaryDark,
+                ),
+                SizedBox(width: 40),
+                _buildContactCard(
+                  icon: Icons.bug_report,
+                  title: 'Report Issue',
+                  subtitle: 'Help us improve',
+                  color: AppColors.secondary,
+                ),
+              ],
+            ),
+            SizedBox(height: 40),
+            Container(
+              padding: EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey[200]!),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Follow Us',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildSocialIcon(Icons.facebook, Color(0xFF1877F2)),
+                      SizedBox(width: 16),
+                      _buildSocialIcon(Icons.alternate_email, Color(0xFF1DA1F2)),
+                      SizedBox(width: 16),
+                      _buildSocialIcon(Icons.camera_alt, Color(0xFFE4405F)),
+                      SizedBox(width: 16),
+                      _buildSocialIcon(Icons.code, Color(0xFF24292E)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildContactCard({required IconData icon, required String title, required String subtitle, required Color color}) {
+    return Container(
+      width: 200,
+      padding: EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 40, color: color),
+          ),
+          SizedBox(height: 16),
+          Text(
+            title,
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildSocialIcon(IconData icon, Color color) {
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, color: color, size: 28),
     );
   }
   
@@ -617,7 +884,7 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
   Widget _buildFooter() {
     return Container(
       padding: EdgeInsets.symmetric(vertical: 40, horizontal: 40),
-      color: Colors.grey[900],
+      color: AppColors.dark,
       child: Column(
         children: [
           Row(

@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../services/theme_service.dart';
+import '../widgets/logo_widget.dart';
+import '../theme/app_colors.dart';
 
 class DashboardPage extends StatefulWidget {
   @override
@@ -41,7 +43,7 @@ class _DashboardPageState extends State<DashboardPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Dashboard'),
-        backgroundColor: Color(0xFF667eea),
+        backgroundColor: AppColors.primary,
         actions: [
           Consumer<ThemeService>(
             builder: (context, themeService, child) {
@@ -79,8 +81,10 @@ class _DashboardPageState extends State<DashboardPage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.pushNamed(context, '/builder'),
         icon: Icon(Icons.add),
-        label: Text('New Portfolio'),
-        backgroundColor: Color(0xFF667eea),
+        label: Text('New Portfolio', style: TextStyle(fontWeight: FontWeight.w600)),
+        backgroundColor: AppColors.primary,
+        tooltip: 'Create a new portfolio',
+        elevation: 4,
       ),
     );
   }
@@ -88,56 +92,67 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _buildSidebar(BuildContext context) {
     return Container(
       width: 250,
-      color: Colors.grey[100],
+      color: AppColors.veryLightGray,
       child: ListView(
         children: [
           DrawerHeader(
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-              ),
+              gradient: AppColors.professionalGradient,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text(
-                  'Elevare',
-                  style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  Provider.of<AuthService>(context).user?['username'] ?? '',
-                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                LogoWidget(fontSize: 24, color: Colors.white, showTagline: false),
+                SizedBox(height: 16),
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.white.withOpacity(0.3),
+                      child: Icon(Icons.person, color: Colors.white),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        Provider.of<AuthService>(context).user?['username'] ?? '',
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
           ListTile(
-            leading: Icon(Icons.dashboard, color: Color(0xFF667eea)),
-            title: Text('Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
+            leading: Icon(Icons.dashboard, color: AppColors.primary),
+            title: Text('Dashboard', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.dark)),
             selected: true,
-            selectedTileColor: Colors.blue[50],
+            selectedTileColor: AppColors.primary.withOpacity(0.1),
           ),
           ListTile(
-            leading: Icon(Icons.web),
-            title: Text('Portfolios'),
+            leading: Icon(Icons.web, color: AppColors.mediumGray),
+            title: Text('Portfolios', style: TextStyle(color: AppColors.dark)),
             onTap: () {},
+            hoverColor: AppColors.primary.withOpacity(0.05),
           ),
           ListTile(
-            leading: Icon(Icons.palette),
-            title: Text('Templates'),
+            leading: Icon(Icons.palette, color: AppColors.mediumGray),
+            title: Text('Templates', style: TextStyle(color: AppColors.dark)),
             onTap: () => Navigator.pushNamed(context, '/templates'),
+            hoverColor: AppColors.primary.withOpacity(0.05),
           ),
           ListTile(
-            leading: Icon(Icons.analytics),
-            title: Text('Analytics'),
+            leading: Icon(Icons.analytics, color: AppColors.mediumGray),
+            title: Text('Analytics', style: TextStyle(color: AppColors.dark)),
             onTap: () {},
+            hoverColor: AppColors.primary.withOpacity(0.05),
           ),
           ListTile(
-            leading: Icon(Icons.settings),
-            title: Text('Settings'),
+            leading: Icon(Icons.settings, color: AppColors.mediumGray),
+            title: Text('Settings', style: TextStyle(color: AppColors.dark)),
             onTap: () => Navigator.pushNamed(context, '/settings'),
+            hoverColor: AppColors.primary.withOpacity(0.05),
           ),
         ],
       ),
@@ -145,14 +160,16 @@ class _DashboardPageState extends State<DashboardPage> {
   }
   
   Widget _buildMainContent() {
-    return Padding(
-      padding: EdgeInsets.all(40),
-      child: Column(
+    return Container(
+      color: AppColors.white,
+      child: Padding(
+        padding: EdgeInsets.all(40),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'My Portfolios',
-            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.dark),
           ),
           SizedBox(height: 32),
           _portfolios.isEmpty
@@ -170,6 +187,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ),
         ],
+        ),
       ),
     );
   }
@@ -179,16 +197,16 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.web_asset_off, size: 100, color: Colors.grey[300]),
+          Icon(Icons.web_asset_off, size: 100, color: AppColors.lightGray),
           SizedBox(height: 20),
           Text(
             'No portfolios yet',
-            style: TextStyle(fontSize: 24, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 24, color: AppColors.mediumGray, fontWeight: FontWeight.w500),
           ),
           SizedBox(height: 12),
           Text(
             'Create your first portfolio to get started',
-            style: TextStyle(fontSize: 16, color: Colors.grey[500]),
+            style: TextStyle(fontSize: 16, color: AppColors.lightGray),
           ),
         ],
       ),
@@ -206,79 +224,157 @@ class _DashboardPageState extends State<DashboardPage> {
           child: Opacity(
             opacity: value,
             child: Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              child: InkWell(
-                onTap: () => Navigator.pushNamed(context, '/builder', arguments: portfolio['id']),
-                borderRadius: BorderRadius.circular(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              height: 180,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                ),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              ),
-              child: Center(
-                child: Icon(Icons.web, size: 60, color: Colors.white70),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.all(16),
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              color: AppColors.white,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    portfolio['title'] ?? 'Untitled',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  SizedBox(height: 8),
-                  Row(
+                  Stack(
                     children: [
-                      Icon(
-                        portfolio['isPublished'] ? Icons.public : Icons.public_off,
-                        size: 16,
-                        color: portfolio['isPublished'] ? Colors.green : Colors.grey,
+                      InkWell(
+                        onTap: () => Navigator.pushNamed(context, '/builder', arguments: portfolio['id']),
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                        child: Container(
+                          height: 180,
+                          decoration: BoxDecoration(
+                            gradient: AppColors.professionalGradient,
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                          ),
+                          child: Stack(
+                            children: [
+                              // Decorative pattern
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                    gradient: RadialGradient(
+                                      center: Alignment.topRight,
+                                      radius: 1.5,
+                                      colors: [
+                                        Colors.white.withOpacity(0.1),
+                                        Colors.transparent,
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: Icon(Icons.web, size: 48, color: Colors.white),
+                                    ),
+                                    SizedBox(height: 12),
+                                    Text(
+                                      portfolio['title'] ?? 'Portfolio',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      SizedBox(width: 4),
-                      Text(
-                        portfolio['isPublished'] ? 'Published' : 'Draft',
-                        style: TextStyle(
-                          color: portfolio['isPublished'] ? Colors.green : Colors.grey,
-                          fontSize: 14,
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: PopupMenuButton<String>(
+                          icon: Icon(Icons.more_vert, color: Colors.white),
+                          color: Colors.white,
+                          onSelected: (value) {
+                            if (value == 'delete') {
+                              _deletePortfolio(portfolio['id'], portfolio['title']);
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete, color: Colors.red, size: 20),
+                                  SizedBox(width: 8),
+                                  Text('Delete', style: TextStyle(color: Colors.red)),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 8),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => Navigator.pushNamed(context, '/builder', arguments: portfolio['id']),
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              portfolio['title'] ?? 'Untitled',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  portfolio['isPublished'] ? Icons.public : Icons.public_off,
+                                  size: 16,
+                                  color: portfolio['isPublished'] ? AppColors.success : AppColors.mediumGray,
+                                ),
+                                SizedBox(width: 4),
+                      Text(
+                        portfolio['isPublished'] ? 'Published' : 'Draft',
+                        style: TextStyle(
+                          color: portfolio['isPublished'] ? AppColors.success : AppColors.mediumGray,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                              ],
+                            ),
+                            SizedBox(height: 8),
                   Text(
                     'Updated ${_formatDate(portfolio['updatedAt'])}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 12, color: AppColors.mediumGray),
                   ),
-                  if (portfolio['isPublished']) ...[
-                    SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => _copyPortfolioLink(portfolio['slug']),
-                        icon: Icon(Icons.link, size: 16),
-                        label: Text('Copy Link'),
-                        style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(vertical: 8),
+                            if (portfolio['isPublished']) ...[
+                              SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () => _copyPortfolioLink(portfolio['slug']),
+                                  icon: Icon(Icons.link, size: 16),
+                                  label: Text('Copy Link'),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: EdgeInsets.symmetric(vertical: 8),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ),
-                  ],
+                  ),
                 ],
-              ),
-            ),
-          ],
-        ),
               ),
             ),
           ),
@@ -304,6 +400,66 @@ class _DashboardPageState extends State<DashboardPage> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+  
+  void _deletePortfolio(String portfolioId, String? portfolioTitle) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete Portfolio'),
+        content: Text('Are you sure you want to delete "${portfolioTitle ?? 'this portfolio'}"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _performDelete(portfolioId);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Future<void> _performDelete(String portfolioId) async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await ApiService.delete('/portfolios/$portfolioId', token: authService.token);
+      
+      // Reload portfolios list
+      await _loadPortfolios();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 8),
+              Expanded(child: Text('Portfolio deleted successfully')),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete portfolio: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
   }
   
   String _formatDate(String? dateStr) {

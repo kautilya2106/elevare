@@ -1,6 +1,8 @@
 // lib/screens/templates_page.dart
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../widgets/logo_widget.dart';
+import '../theme/app_colors.dart';
 
 class TemplatesPage extends StatefulWidget {
   @override
@@ -58,17 +60,25 @@ class _TemplatesPageState extends State<TemplatesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Template Marketplace'),
-        backgroundColor: Color(0xFF667eea),
+        title: LogoWidget(fontSize: 20, showTagline: false, color: Colors.white),
+        backgroundColor: AppColors.primary,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
+      backgroundColor: AppColors.white,
       body: Column(
         children: [
           _buildSearchBar(),
           _buildCategoryFilter(),
           Expanded(
-            child: _isLoading
-                ? Center(child: CircularProgressIndicator())
-                : _buildTemplateGrid(),
+            child: Container(
+              color: AppColors.white,
+              child: _isLoading
+                  ? Center(child: CircularProgressIndicator())
+                  : _buildTemplateGrid(),
+            ),
           ),
         ],
       ),
@@ -94,7 +104,7 @@ class _TemplatesPageState extends State<TemplatesPage> {
             borderSide: BorderSide.none,
           ),
           filled: true,
-          fillColor: Colors.grey[100],
+          fillColor: AppColors.veryLightGray,
         ),
         onChanged: (_) => _filterTemplates(),
       ),
@@ -122,10 +132,10 @@ class _TemplatesPageState extends State<TemplatesPage> {
                     _filterTemplates();
                   });
                 },
-                backgroundColor: Colors.grey[200],
-                selectedColor: Color(0xFF667eea),
+                backgroundColor: AppColors.veryLightGray,
+                selectedColor: AppColors.primary,
                 labelStyle: TextStyle(
-                  color: isSelected ? Colors.white : Colors.black,
+                  color: isSelected ? AppColors.white : AppColors.dark,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
@@ -136,22 +146,41 @@ class _TemplatesPageState extends State<TemplatesPage> {
     );
   }
   
+  IconData _getTemplateIcon(String? category) {
+    switch (category?.toLowerCase()) {
+      case 'developer':
+        return Icons.code;
+      case 'designer':
+        return Icons.palette;
+      case 'writer':
+        return Icons.edit;
+      case 'photographer':
+        return Icons.camera_alt;
+      case 'business':
+        return Icons.business;
+      case 'creative':
+        return Icons.brush;
+      default:
+        return Icons.web;
+    }
+  }
+  
   Widget _buildTemplateGrid() {
     if (_filteredTemplates.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+            Icon(Icons.search_off, size: 64, color: AppColors.lightGray),
             SizedBox(height: 16),
             Text(
               'No templates found',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 16, color: AppColors.mediumGray, fontWeight: FontWeight.w500),
             ),
             SizedBox(height: 8),
             Text(
               'Try a different search or category',
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              style: TextStyle(fontSize: 14, color: AppColors.lightGray),
             ),
           ],
         ),
@@ -182,12 +211,15 @@ class _TemplatesPageState extends State<TemplatesPage> {
           child: Opacity(
             opacity: value,
             child: Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              color: AppColors.white,
               child: InkWell(
                 onTap: () => _showTemplatePreview(template),
-                borderRadius: BorderRadius.circular(16),
-                child: Column(
+                borderRadius: BorderRadius.circular(12),
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Stack(
@@ -195,13 +227,59 @@ class _TemplatesPageState extends State<TemplatesPage> {
                         Container(
                           height: 200,
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                            ),
+                            gradient: AppColors.professionalGradient,
                             borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                           ),
-                          child: Center(
-                            child: Icon(Icons.web, size: 60, color: Colors.white70),
+                          child: Stack(
+                            children: [
+                              // Decorative pattern
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                    gradient: RadialGradient(
+                                      center: Alignment.topRight,
+                                      radius: 1.5,
+                                      colors: [
+                                        Colors.white.withOpacity(0.15),
+                                        Colors.transparent,
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: EdgeInsets.all(20),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Icon(
+                                        _getTemplateIcon(template['category']),
+                                        size: 64,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    SizedBox(height: 12),
+                                    Text(
+                                      template['name'] ?? 'Template',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         if (template['isFeatured'])
@@ -233,14 +311,14 @@ class _TemplatesPageState extends State<TemplatesPage> {
                         children: [
                           Text(
                             template['name'] ?? 'Template',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.dark),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           SizedBox(height: 8),
                           Text(
                             template['description'] ?? '',
-                            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                            style: TextStyle(fontSize: 14, color: AppColors.mediumGray),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -250,12 +328,12 @@ class _TemplatesPageState extends State<TemplatesPage> {
                             children: [
                               Text(
                                 '${template['downloads'] ?? 0} downloads',
-                                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                                style: TextStyle(fontSize: 12, color: AppColors.lightGray),
                               ),
                               ElevatedButton(
                                 onPressed: () => _useTemplate(template),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Color(0xFF667eea),
+                                  backgroundColor: AppColors.primary,
                                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                 ),
                                 child: Text('Use Template', style: TextStyle(fontSize: 12)),
@@ -266,6 +344,7 @@ class _TemplatesPageState extends State<TemplatesPage> {
                       ),
                     ),
                   ],
+                  ),
                 ),
               ),
             ),
@@ -331,7 +410,7 @@ class _TemplatesPageState extends State<TemplatesPage> {
                   SizedBox(height: 8),
                   Chip(
                     label: Text(template['category'] ?? 'Uncategorized'),
-                    backgroundColor: Color(0xFF667eea).withOpacity(0.1),
+                    backgroundColor: AppColors.primary.withOpacity(0.1),
                   ),
                   SizedBox(height: 16),
                   Text(

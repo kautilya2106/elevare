@@ -3,8 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../widgets/logo_widget.dart';
+import '../theme/app_colors.dart';
 
 class PortfolioBuilderPage extends StatefulWidget {
+  final String? portfolioId;
+  
+  PortfolioBuilderPage({this.portfolioId});
+  
   @override
   _PortfolioBuilderPageState createState() => _PortfolioBuilderPageState();
 }
@@ -12,40 +18,102 @@ class PortfolioBuilderPage extends StatefulWidget {
 class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
   final _titleController = TextEditingController();
   final _slugController = TextEditingController();
-  List<String> _sections = ['about', 'projects', 'skills', 'contact'];
+  List<String> _sections = ['about', 'experience', 'projects', 'skills', 'contact'];
   Map<String, dynamic> _content = {
     'about': {'title': 'About Me', 'text': 'I am a passionate developer...'},
+    'experience': {'title': 'Experience', 'items': []},
     'projects': {'title': 'Projects', 'items': []},
     'skills': {'title': 'Skills', 'items': []},
     'contact': {'title': 'Contact', 'email': '', 'phone': '', 'location': ''},
   };
   bool _isDarkMode = false;
+  bool _isLoading = true;
   String? _portfolioId;
   
   @override
+  void initState() {
+    super.initState();
+    _portfolioId = widget.portfolioId;
+    if (_portfolioId != null) {
+      _loadPortfolio();
+    } else {
+      _isLoading = false;
+    }
+  }
+  
+  Future<void> _loadPortfolio() async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      if (authService.token == null) {
+        throw Exception('Not authenticated');
+      }
+      
+      final portfolio = await ApiService.get('/portfolios/id/$_portfolioId', token: authService.token);
+      
+      setState(() {
+        _titleController.text = portfolio['title'] ?? '';
+        _slugController.text = portfolio['slug'] ?? '';
+        _content = portfolio['content'] ?? _content;
+        
+        // Ensure experience section exists in content if not present
+        if (!_content.containsKey('experience')) {
+          _content['experience'] = {'title': 'Experience', 'items': []};
+        }
+        
+        _sections = (_content['sections'] as List?)?.map((e) => e.toString()).toList() ?? 
+                    ['about', 'experience', 'projects', 'skills', 'contact'];
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load portfolio: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
+        ),
+      );
+    }
+  }
+  
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: LogoWidget(fontSize: 20, showTagline: false, color: Colors.white),
+          backgroundColor: AppColors.primary,
+        ),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     return Scaffold(
       appBar: AppBar(
-        title: Text('Portfolio Builder'),
-        backgroundColor: Color(0xFF667eea),
+        title: LogoWidget(fontSize: 20, showTagline: false, color: Colors.white),
+        backgroundColor: AppColors.primary,
         actions: [
           IconButton(
             icon: Icon(_isDarkMode ? Icons.light_mode : Icons.dark_mode),
             onPressed: () => setState(() => _isDarkMode = !_isDarkMode),
+            tooltip: 'Toggle theme',
           ),
           IconButton(
             icon: Icon(Icons.save),
             onPressed: _savePortfolio,
-            tooltip: 'Save Draft',
+            tooltip: 'Save portfolio',
           ),
           SizedBox(width: 8),
-          ElevatedButton.icon(
-            onPressed: _publishPortfolio,
-            icon: Icon(Icons.publish),
-            label: Text('Publish'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Color(0xFF667eea),
+          Tooltip(
+            message: 'Publish portfolio',
+            child: ElevatedButton.icon(
+              onPressed: _publishPortfolio,
+              icon: Icon(Icons.publish),
+              label: Text('Publish', style: TextStyle(fontWeight: FontWeight.w600)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.white,
+                foregroundColor: AppColors.primary,
+                elevation: 2,
+              ),
             ),
           ),
           SizedBox(width: 16),
@@ -55,12 +123,12 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
         children: [
           Container(
             width: 350,
-            color: Colors.grey[100],
+            color: AppColors.veryLightGray,
             child: _buildEditorPanel(),
           ),
           Expanded(
             child: Container(
-              color: _isDarkMode ? Colors.grey[900] : Colors.white,
+              color: _isDarkMode ? AppColors.dark : AppColors.white,
               child: _buildPreview(),
             ),
           ),
@@ -75,7 +143,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
       children: [
         Text(
           'Portfolio Settings',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.dark),
         ),
         SizedBox(height: 20),
         TextField(
@@ -83,7 +151,9 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
           decoration: InputDecoration(
             labelText: 'Portfolio Title',
             hintText: 'My Portfolio',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            filled: true,
+            fillColor: AppColors.white,
           ),
           onChanged: (v) => setState(() {}),
         ),
@@ -93,15 +163,18 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
           decoration: InputDecoration(
             labelText: 'URL Slug',
             hintText: 'my-portfolio',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             prefixText: 'elevare.com/p/',
+            filled: true,
+            fillColor: AppColors.white,
+            helperText: 'Used in your portfolio URL',
           ),
           onChanged: (v) => setState(() {}),
         ),
         SizedBox(height: 32),
         Text(
           'Sections',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.dark),
         ),
         SizedBox(height: 16),
         ReorderableListView(
@@ -119,8 +192,12 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
         SizedBox(height: 16),
         OutlinedButton.icon(
           onPressed: _addSection,
-          icon: Icon(Icons.add),
-          label: Text('Add Section'),
+          icon: Icon(Icons.add, color: AppColors.primary),
+          label: Text('Add Section', style: TextStyle(color: AppColors.primary)),
+          style: OutlinedButton.styleFrom(
+            side: BorderSide(color: AppColors.primary),
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
         ),
       ],
     );
@@ -130,24 +207,29 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
     return Card(
       key: ValueKey(section),
       margin: EdgeInsets.only(bottom: 12),
+      color: AppColors.white,
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: ListTile(
-        leading: Icon(Icons.drag_indicator),
-        title: Text(section.toUpperCase()),
+        leading: Icon(Icons.drag_indicator, color: AppColors.mediumGray),
+        title: Text(section.toUpperCase(), style: TextStyle(color: AppColors.dark, fontWeight: FontWeight.w500)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: Icon(Icons.edit, size: 20),
+              icon: Icon(Icons.edit, size: 20, color: AppColors.primary),
               onPressed: () => _editSection(section),
+              tooltip: 'Edit section',
             ),
             IconButton(
-              icon: Icon(Icons.delete, size: 20),
+              icon: Icon(Icons.delete, size: 20, color: AppColors.error),
               onPressed: () {
                 setState(() {
                   _sections.remove(section);
                   _content.remove(section);
                 });
               },
+              tooltip: 'Delete section',
             ),
           ],
         ),
@@ -172,7 +254,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
                     style: TextStyle(
                       fontSize: 48,
                       fontWeight: FontWeight.bold,
-                      color: _isDarkMode ? Colors.white : Colors.black,
+                      color: _isDarkMode ? AppColors.white : AppColors.dark,
                     ),
                   ),
                   SizedBox(height: 12),
@@ -180,7 +262,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
                     'Professional Portfolio',
                     style: TextStyle(
                       fontSize: 20,
-                      color: _isDarkMode ? Colors.white70 : Colors.grey[600],
+                      color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
                     ),
                   ),
                 ],
@@ -206,7 +288,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
             style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
-              color: _isDarkMode ? Colors.white : Colors.black,
+              color: _isDarkMode ? AppColors.white : AppColors.dark,
             ),
           ),
           SizedBox(height: 24),
@@ -215,10 +297,12 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
               sectionData['text'] ?? 'Tell visitors about yourself...',
               style: TextStyle(
                 fontSize: 16,
-                color: _isDarkMode ? Colors.white70 : Colors.grey[700],
+                color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
                 height: 1.6,
               ),
             )
+          else if (section == 'experience')
+            _buildExperiencePreview(sectionData)
           else if (section == 'projects')
             _buildProjectsPreview(sectionData)
           else if (section == 'skills')
@@ -230,7 +314,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
               sectionData['text'] ?? 'Click edit to add content...',
               style: TextStyle(
                 fontSize: 16,
-                color: _isDarkMode ? Colors.white70 : Colors.grey[700],
+                color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
               ),
             ),
         ],
@@ -269,7 +353,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: _isDarkMode ? Colors.white : Colors.black,
+                  color: _isDarkMode ? AppColors.white : AppColors.dark,
                 ),
               ),
               SizedBox(height: 8),
@@ -277,7 +361,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
                 project['description'] ?? '',
                 style: TextStyle(
                   fontSize: 14,
-                  color: _isDarkMode ? Colors.white70 : Colors.grey[700],
+                  color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
                 ),
               ),
               if (project['url'] != null) ...[
@@ -286,8 +370,107 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
                   project['url'],
                   style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF667eea),
+                    color: AppColors.primary,
                     decoration: TextDecoration.underline,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+  
+  Widget _buildExperiencePreview(Map<String, dynamic> data) {
+    final experiences = (data['items'] as List?) ?? [];
+    if (experiences.isEmpty) {
+      return Text(
+        'Click edit to add your experience...',
+        style: TextStyle(
+          fontSize: 16,
+          color: _isDarkMode ? Colors.white70 : Colors.grey[700],
+        ),
+      );
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: experiences.map<Widget>((exp) {
+        final company = exp['company'] ?? '';
+        final position = exp['position'] ?? '';
+        final startDate = exp['startDate'] ?? '';
+        final endDate = exp['endDate'] ?? '';
+        final location = exp['location'] ?? '';
+        final description = exp['description'] ?? '';
+        
+        return Container(
+          margin: EdgeInsets.only(bottom: 24),
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _isDarkMode ? Colors.grey[800] : Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (position.isNotEmpty)
+                Text(
+                  position,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _isDarkMode ? AppColors.white : AppColors.dark,
+                  ),
+                ),
+              if (company.isNotEmpty) ...[
+                SizedBox(height: 4),
+                Text(
+                  company,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
+                  ),
+                ),
+              ],
+              if (startDate.isNotEmpty || endDate.isNotEmpty) ...[
+                SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.calendar_today, size: 14, color: Color(0xFF667eea)),
+                    SizedBox(width: 4),
+                    Text(
+                      endDate.isEmpty 
+                          ? startDate 
+                          : '$startDate - $endDate',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
+                      ),
+                    ),
+                    if (location.isNotEmpty) ...[
+                      SizedBox(width: 16),
+                      Icon(Icons.location_on, size: 14, color: Color(0xFF667eea)),
+                      SizedBox(width: 4),
+                      Text(
+                        location,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+              if (description.isNotEmpty) ...[
+                SizedBox(height: 12),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
+                    height: 1.5,
                   ),
                 ),
               ],
@@ -316,7 +499,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
       children: skills.map<Widget>((skill) {
         return Chip(
           label: Text(skill.toString()),
-          backgroundColor: Color(0xFF667eea),
+          backgroundColor: AppColors.primary,
           labelStyle: TextStyle(color: Colors.white),
           deleteIcon: Icon(Icons.close, size: 16, color: Colors.white70),
           onDeleted: () {
@@ -344,7 +527,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
                   data['email'],
                   style: TextStyle(
                     fontSize: 16,
-                    color: _isDarkMode ? Colors.white70 : Colors.grey[700],
+                    color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
                   ),
                 ),
               ],
@@ -361,7 +544,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
                   data['phone'],
                   style: TextStyle(
                     fontSize: 16,
-                    color: _isDarkMode ? Colors.white70 : Colors.grey[700],
+                    color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
                   ),
                 ),
               ],
@@ -376,7 +559,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
                 data['location'],
                 style: TextStyle(
                   fontSize: 16,
-                  color: _isDarkMode ? Colors.white70 : Colors.grey[700],
+                  color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
                 ),
               ),
             ],
@@ -388,7 +571,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
             'Click edit to add contact information...',
             style: TextStyle(
               fontSize: 16,
-              color: _isDarkMode ? Colors.white70 : Colors.grey[700],
+              color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
             ),
           ),
       ],
@@ -442,6 +625,8 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
   void _editSection(String section) {
     if (section == 'about') {
       _editAboutSection();
+    } else if (section == 'experience') {
+      _editExperienceSection();
     } else if (section == 'projects') {
       _editProjectsSection();
     } else if (section == 'skills') {
@@ -481,6 +666,186 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
             onPressed: () {
               setState(() {
                 _content['about']['text'] = controller.text;
+              });
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF667eea)),
+            child: Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _editExperienceSection() {
+    final experiences = List<Map<String, String>>.from(
+      (_content['experience']['items'] as List?)?.map((e) => Map<String, String>.from(e)) ?? []
+    );
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Edit Experience'),
+          content: Container(
+            width: 500,
+            height: 400,
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: experiences.length,
+                    itemBuilder: (context, index) {
+                      return Card(
+                        child: ListTile(
+                          title: Text(experiences[index]['company'] ?? 'Experience ${index + 1}'),
+                          subtitle: Text(experiences[index]['position'] ?? ''),
+                          trailing: IconButton(
+                            icon: Icon(Icons.delete),
+                            onPressed: () {
+                              setDialogState(() {
+                                experiences.removeAt(index);
+                              });
+                            },
+                          ),
+                          onTap: () {
+                            _editExperience(experiences, index, setDialogState);
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setDialogState(() {
+                      experiences.add({
+                        'company': '',
+                        'position': '',
+                        'startDate': '',
+                        'endDate': '',
+                        'location': '',
+                        'description': '',
+                      });
+                    });
+                    _editExperience(experiences, experiences.length - 1, setDialogState);
+                  },
+                  icon: Icon(Icons.add),
+                  label: Text('Add Experience'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF667eea)),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _content['experience']['items'] = experiences;
+                });
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF667eea)),
+              child: Text('Save All'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  void _editExperience(List<Map<String, String>> experiences, int index, StateSetter setDialogState) {
+    final companyController = TextEditingController(text: experiences[index]['company']);
+    final positionController = TextEditingController(text: experiences[index]['position']);
+    final startDateController = TextEditingController(text: experiences[index]['startDate']);
+    final endDateController = TextEditingController(text: experiences[index]['endDate'] ?? '');
+    final locationController = TextEditingController(text: experiences[index]['location'] ?? '');
+    final descriptionController = TextEditingController(text: experiences[index]['description'] ?? '');
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Edit Experience'),
+        content: Container(
+          width: 400,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: companyController,
+                  decoration: InputDecoration(
+                    labelText: 'Company *',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: positionController,
+                  decoration: InputDecoration(
+                    labelText: 'Position/Title *',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: startDateController,
+                  decoration: InputDecoration(
+                    labelText: 'Start Date * (e.g., Jan 2020)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: endDateController,
+                  decoration: InputDecoration(
+                    labelText: 'End Date (e.g., Dec 2022 or "Present")',
+                    border: OutlineInputBorder(),
+                    helperText: 'Leave empty if current position',
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: locationController,
+                  decoration: InputDecoration(
+                    labelText: 'Location',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: descriptionController,
+                  decoration: InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setDialogState(() {
+                experiences[index] = {
+                  'company': companyController.text,
+                  'position': positionController.text,
+                  'startDate': startDateController.text,
+                  'endDate': endDateController.text,
+                  'location': locationController.text,
+                  'description': descriptionController.text,
+                };
               });
               Navigator.pop(context);
             },
@@ -677,7 +1042,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
                           });
                         }
                       },
-                      color: Color(0xFF667eea),
+                      color: AppColors.primary,
                     ),
                   ],
                 ),
@@ -842,19 +1207,34 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
     }
     
     try {
-      final response = await ApiService.post('/portfolios', {
-        'title': _titleController.text,
-        'slug': _slugController.text,
-        'content': _content,
-      });
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final contentToSave = Map<String, dynamic>.from(_content);
+      contentToSave['sections'] = _sections;
       
-      setState(() {
-        _portfolioId = response['id'];
-      });
+      Map<String, dynamic> response;
+      if (_portfolioId != null) {
+        // Update existing portfolio
+        response = await ApiService.put('/portfolios/$_portfolioId', {
+          'title': _titleController.text,
+          'slug': _slugController.text,
+          'content': contentToSave,
+        }, token: authService.token);
+      } else {
+        // Create new portfolio
+        response = await ApiService.post('/portfolios', {
+          'title': _titleController.text,
+          'slug': _slugController.text,
+          'content': contentToSave,
+        }, token: authService.token);
+        
+        setState(() {
+          _portfolioId = response['id'];
+        });
+      }
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Portfolio saved successfully!'),
+          content: Text(_portfolioId != null ? 'Portfolio updated successfully!' : 'Portfolio saved successfully!'),
           backgroundColor: Colors.green,
         ),
       );
@@ -874,23 +1254,31 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
       if (_portfolioId == null) return;
     }
     
+    if (_slugController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please add a URL slug before publishing')),
+      );
+      return;
+    }
+    
     try {
-      await ApiService.post('/portfolios/$_portfolioId/publish', {});
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await ApiService.post('/portfolios/$_portfolioId/publish', {}, token: authService.token);
       
+      // Show success message briefly, then redirect
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Portfolio published! View at: elevare.com/p/${_slugController.text}'),
+          content: Text('Portfolio published successfully!'),
           backgroundColor: Colors.green,
-          duration: Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'View',
-            textColor: Colors.white,
-            onPressed: () {
-              Navigator.pushNamed(context, '/p/${_slugController.text}');
-            },
-          ),
+          duration: Duration(seconds: 2),
         ),
       );
+      
+      // Wait a moment for the snackbar to show, then redirect
+      await Future.delayed(Duration(milliseconds: 500));
+      
+      // Navigate to the published portfolio page
+      Navigator.pushReplacementNamed(context, '/p/${_slugController.text}');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
