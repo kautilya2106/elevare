@@ -460,12 +460,27 @@ class PortfolioHandler {
       final content = body['content'] ?? {};
       final templateId = body['templateId'];
       
-      if (title == null || slug == null) {
-        return Response.badRequest(body: json.encode({'error': 'Missing required fields'}));
+      if (title == null || title.isEmpty) {
+        return Response.badRequest(body: json.encode({'error': 'Title is required'}));
+      }
+      
+      if (slug == null || slug.isEmpty) {
+        return Response.badRequest(body: json.encode({'error': 'Slug is required'}));
+      }
+      
+      final conn = await Database.connection;
+      
+      // Check if slug already exists for this user
+      final existing = await conn.execute(
+        'SELECT id FROM portfolios WHERE slug = \$1 AND user_id = \$2',
+        parameters: [slug, userId],
+      );
+      
+      if (existing.isNotEmpty) {
+        return Response.badRequest(body: json.encode({'error': 'A portfolio with this slug already exists'}));
       }
       
       final portfolioId = Uuid().v4();
-      final conn = await Database.connection;
       
       await conn.execute(
         'INSERT INTO portfolios (id, user_id, title, slug, template_id, content) VALUES (\$1, \$2, \$3, \$4, \$5, \$6)',
@@ -479,7 +494,8 @@ class PortfolioHandler {
         'content': content,
       }), headers: {'Content-Type': 'application/json'});
     } catch (e) {
-      return Response.internalServerError(body: json.encode({'error': 'Failed to create portfolio'}));
+      print('Create portfolio error: $e');
+      return Response.internalServerError(body: json.encode({'error': 'Failed to create portfolio: ${e.toString()}'}));
     }
   }
   
@@ -559,8 +575,12 @@ class PortfolioHandler {
       final slug = body['slug']?.toString().trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9-]'), '-');
       final content = body['content'] ?? {};
       
-      if (title == null || slug == null) {
-        return Response.badRequest(body: json.encode({'error': 'Missing required fields'}));
+      if (title == null || title.isEmpty) {
+        return Response.badRequest(body: json.encode({'error': 'Title is required'}));
+      }
+      
+      if (slug == null || slug.isEmpty) {
+        return Response.badRequest(body: json.encode({'error': 'Slug is required'}));
       }
       
       final conn = await Database.connection;
@@ -572,13 +592,27 @@ class PortfolioHandler {
       );
       
       if (ownership.isEmpty) {
-        return Response.forbidden(json.encode({'error': 'Access denied'}));
+        return Response.forbidden(json.encode({'error': 'Portfolio not found or access denied'}));
       }
       
-      await conn.execute(
+      // Check if slug already exists for another portfolio by this user
+      final existing = await conn.execute(
+        'SELECT id FROM portfolios WHERE slug = \$1 AND user_id = \$2 AND id != \$3',
+        parameters: [slug, userId, id],
+      );
+      
+      if (existing.isNotEmpty) {
+        return Response.badRequest(body: json.encode({'error': 'A portfolio with this slug already exists'}));
+      }
+      
+      final result = await conn.execute(
         'UPDATE portfolios SET title = \$1, slug = \$2, content = \$3, updated_at = CURRENT_TIMESTAMP WHERE id = \$4 AND user_id = \$5',
         parameters: [title, slug, json.encode(content), id, userId],
       );
+      
+      if (result.affectedRows == 0) {
+        return Response.notFound(json.encode({'error': 'Portfolio not found'}));
+      }
       
       return Response.ok(json.encode({
         'id': id,
@@ -587,6 +621,7 @@ class PortfolioHandler {
         'content': content,
       }), headers: {'Content-Type': 'application/json'});
     } catch (e) {
+      print('Update portfolio error: $e');
       return Response.internalServerError(body: json.encode({'error': 'Failed to update portfolio: ${e.toString()}'}));
     }
   }
@@ -653,14 +688,29 @@ class PortfolioHandler {
       final userId = request.context['userId'] as String;
       final conn = await Database.connection;
       
-      await conn.execute(
+      // Check ownership first
+      final ownership = await conn.execute(
+        'SELECT id FROM portfolios WHERE id = \$1 AND user_id = \$2',
+        parameters: [id, userId],
+      );
+      
+      if (ownership.isEmpty) {
+        return Response.forbidden(json.encode({'error': 'Portfolio not found or access denied'}));
+      }
+      
+      final result = await conn.execute(
         'UPDATE portfolios SET is_published = true, updated_at = CURRENT_TIMESTAMP WHERE id = \$1 AND user_id = \$2',
         parameters: [id, userId],
       );
       
+      if (result.affectedRows == 0) {
+        return Response.notFound(json.encode({'error': 'Portfolio not found'}));
+      }
+      
       return Response.ok(json.encode({'message': 'Portfolio published'}), headers: {'Content-Type': 'application/json'});
     } catch (e) {
-      return Response.internalServerError(body: json.encode({'error': 'Failed to publish portfolio'}));
+      print('Publish error: $e');
+      return Response.internalServerError(body: json.encode({'error': 'Failed to publish portfolio: ${e.toString()}'}));
     }
   }
   
@@ -786,7 +836,14 @@ void main() async {
   router.get('/api/portfolios/<slug>', (Request request, String slug) => PortfolioHandler.getBySlug(request, slug));
   router.post('/api/portfolios/<id>/publish', Pipeline().addMiddleware(authMiddleware()).addHandler((Request request) {
     final pathSegments = request.url.pathSegments;
-    final id = pathSegments[pathSegments.length - 2]; // Get ID before 'publish'
+    // Path: /api/portfolios/{id}/publish
+    // Segments: ['api', 'portfolios', '{id}', 'publish']
+    // So ID is at index 2 (before 'publish' which is at index 3)
+    final idIndex = pathSegments.length - 2;
+    if (idIndex < 0 || idIndex >= pathSegments.length) {
+      return Response.badRequest(body: json.encode({'error': 'Invalid portfolio ID'}));
+    }
+    final id = pathSegments[idIndex];
     return PortfolioHandler.publish(request, id);
   }));
   router.delete('/api/portfolios/<id>', Pipeline().addMiddleware(authMiddleware()).addHandler((Request request) {

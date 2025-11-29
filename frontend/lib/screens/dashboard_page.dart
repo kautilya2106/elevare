@@ -79,7 +79,12 @@ class _DashboardPageState extends State<DashboardPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.pushNamed(context, '/builder'),
+        onPressed: () async {
+          final result = await Navigator.pushNamed(context, '/builder');
+          if (result == true || result != null) {
+            _loadPortfolios(); // Refresh portfolios after saving
+          }
+        },
         icon: Icon(Icons.add),
         label: Text('New Portfolio', style: TextStyle(fontWeight: FontWeight.w600)),
         backgroundColor: AppColors.primary,
@@ -233,7 +238,12 @@ class _DashboardPageState extends State<DashboardPage> {
                   Stack(
                     children: [
                       InkWell(
-                        onTap: () => Navigator.pushNamed(context, '/builder', arguments: portfolio['id']),
+                        onTap: () async {
+                          final result = await Navigator.pushNamed(context, '/builder', arguments: portfolio['id']);
+                          if (result == true || result != null) {
+                            _loadPortfolios(); // Refresh portfolios after saving
+                          }
+                        },
                         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                         child: Container(
                           height: 180,
@@ -319,7 +329,12 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   Expanded(
                     child: InkWell(
-                      onTap: () => Navigator.pushNamed(context, '/builder', arguments: portfolio['id']),
+                      onTap: () async {
+                        final result = await Navigator.pushNamed(context, '/builder', arguments: portfolio['id']);
+                        if (result == true || result != null) {
+                          _loadPortfolios(); // Refresh portfolios after saving
+                        }
+                      },
                       child: Padding(
                         padding: EdgeInsets.all(16),
                         child: Column(
@@ -493,9 +508,11 @@ class _DashboardPageState extends State<DashboardPage> {
             ListTile(
               leading: Icon(Icons.logout),
               title: Text('Logout'),
-              onTap: () {
-                Provider.of<AuthService>(context, listen: false).logout();
-                Navigator.pushReplacementNamed(context, '/');
+              onTap: () async {
+                await Provider.of<AuthService>(context, listen: false).logout();
+                if (mounted) {
+                  Navigator.pushReplacementNamed(context, '/');
+                }
               },
             ),
           ],

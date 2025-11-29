@@ -1,4 +1,5 @@
 // lib/screens/portfolio_builder_page.dart - FULLY FUNCTIONAL VERSION
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
@@ -18,10 +19,11 @@ class PortfolioBuilderPage extends StatefulWidget {
 class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
   final _titleController = TextEditingController();
   final _slugController = TextEditingController();
-  List<String> _sections = ['about', 'experience', 'projects', 'skills', 'contact'];
+  List<String> _sections = ['about', 'experience', 'education', 'projects', 'skills', 'contact'];
   Map<String, dynamic> _content = {
     'about': {'title': 'About Me', 'text': 'I am a passionate developer...'},
     'experience': {'title': 'Experience', 'items': []},
+    'education': {'title': 'Education', 'items': []},
     'projects': {'title': 'Projects', 'items': []},
     'skills': {'title': 'Skills', 'items': []},
     'contact': {'title': 'Contact', 'email': '', 'phone': '', 'location': ''},
@@ -29,6 +31,9 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
   bool _isDarkMode = false;
   bool _isLoading = true;
   String? _portfolioId;
+  Timer? _autoSaveTimer;
+  bool _isAutoSaving = false;
+  bool _hasUnsavedChanges = false;
   
   @override
   void initState() {
@@ -38,6 +43,89 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
       _loadPortfolio();
     } else {
       _isLoading = false;
+    }
+  }
+  
+  @override
+  void dispose() {
+    _autoSaveTimer?.cancel();
+    _titleController.dispose();
+    _slugController.dispose();
+    super.dispose();
+  }
+  
+  void _triggerAutoSave() {
+    _hasUnsavedChanges = true;
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(Duration(seconds: 3), () {
+      if (_hasUnsavedChanges && _titleController.text.isNotEmpty && _slugController.text.isNotEmpty) {
+        _autoSave();
+      }
+    });
+  }
+  
+  Future<void> _autoSave() async {
+    if (_isAutoSaving) return;
+    
+    final authService = Provider.of<AuthService>(context, listen: false);
+    if (authService.token == null || !authService.isAuthenticated) {
+      return;
+    }
+    
+    setState(() {
+      _isAutoSaving = true;
+    });
+    
+    try {
+      final contentToSave = Map<String, dynamic>.from(_content);
+      contentToSave['sections'] = _sections;
+      
+      if (_portfolioId != null) {
+        await ApiService.put('/portfolios/$_portfolioId', {
+          'title': _titleController.text,
+          'slug': _slugController.text,
+          'content': contentToSave,
+        }, token: authService.token);
+      } else {
+        final response = await ApiService.post('/portfolios', {
+          'title': _titleController.text,
+          'slug': _slugController.text,
+          'content': contentToSave,
+        }, token: authService.token);
+        
+        if (mounted) {
+          setState(() {
+            _portfolioId = response['id'];
+          });
+        }
+      }
+      
+      _hasUnsavedChanges = false;
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Text('Auto-saved'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      // Silently fail for auto-save - don't show error to user
+      print('Auto-save failed: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAutoSaving = false;
+        });
+      }
     }
   }
   
@@ -55,13 +143,16 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
         _slugController.text = portfolio['slug'] ?? '';
         _content = portfolio['content'] ?? _content;
         
-        // Ensure experience section exists in content if not present
+        // Ensure experience and education sections exist in content if not present
         if (!_content.containsKey('experience')) {
           _content['experience'] = {'title': 'Experience', 'items': []};
         }
+        if (!_content.containsKey('education')) {
+          _content['education'] = {'title': 'Education', 'items': []};
+        }
         
         _sections = (_content['sections'] as List?)?.map((e) => e.toString()).toList() ?? 
-                    ['about', 'experience', 'projects', 'skills', 'contact'];
+                    ['about', 'experience', 'education', 'projects', 'skills', 'contact'];
         _isLoading = false;
       });
     } catch (e) {
@@ -92,6 +183,20 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
         title: LogoWidget(fontSize: 20, showTagline: false, color: Colors.white),
         backgroundColor: AppColors.primary,
         actions: [
+          if (_isAutoSaving)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+              ),
+            ),
           IconButton(
             icon: Icon(_isDarkMode ? Icons.light_mode : Icons.dark_mode),
             onPressed: () => setState(() => _isDarkMode = !_isDarkMode),
@@ -119,17 +224,52 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
           SizedBox(width: 16),
         ],
       ),
-      body: Row(
+      body: Column(
         children: [
-          Container(
-            width: 350,
-            color: AppColors.veryLightGray,
-            child: _buildEditorPanel(),
+          // Warning banner if not authenticated
+          Consumer<AuthService>(
+            builder: (context, authService, _) {
+              if (!authService.isAuthenticated) {
+                return Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  color: Colors.orange.shade100,
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, color: Colors.orange.shade800),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'You need to log in to save your portfolio',
+                          style: TextStyle(color: Colors.orange.shade900, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pushReplacementNamed(context, '/auth'),
+                        child: Text('Login', style: TextStyle(color: Colors.orange.shade900, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return SizedBox.shrink();
+            },
           ),
           Expanded(
-            child: Container(
-              color: _isDarkMode ? AppColors.dark : AppColors.white,
-              child: _buildPreview(),
+            child: Row(
+              children: [
+                Container(
+                  width: 350,
+                  color: AppColors.veryLightGray,
+                  child: _buildEditorPanel(),
+                ),
+                Expanded(
+                  child: Container(
+                    color: _isDarkMode ? AppColors.dark : AppColors.white,
+                    child: _buildPreview(),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -148,28 +288,58 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
         SizedBox(height: 20),
         TextField(
           controller: _titleController,
+          style: TextStyle(color: AppColors.dark),
           decoration: InputDecoration(
             labelText: 'Portfolio Title',
+            labelStyle: TextStyle(color: AppColors.mediumGray),
             hintText: 'My Portfolio',
+            hintStyle: TextStyle(color: AppColors.lightGray),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             filled: true,
             fillColor: AppColors.white,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: AppColors.lightGray),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: AppColors.primary, width: 2),
+            ),
           ),
-          onChanged: (v) => setState(() {}),
+          onChanged: (v) {
+            setState(() {});
+            _triggerAutoSave();
+          },
         ),
         SizedBox(height: 16),
         TextField(
           controller: _slugController,
+          style: TextStyle(color: AppColors.dark),
           decoration: InputDecoration(
             labelText: 'URL Slug',
+            labelStyle: TextStyle(color: AppColors.mediumGray),
             hintText: 'my-portfolio',
+            hintStyle: TextStyle(color: AppColors.lightGray),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             prefixText: 'elevare.com/p/',
+            prefixStyle: TextStyle(color: AppColors.mediumGray),
             filled: true,
             fillColor: AppColors.white,
             helperText: 'Used in your portfolio URL',
+            helperStyle: TextStyle(color: AppColors.mediumGray),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: AppColors.lightGray),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: AppColors.primary, width: 2),
+            ),
           ),
-          onChanged: (v) => setState(() {}),
+          onChanged: (v) {
+            setState(() {});
+            _triggerAutoSave();
+          },
         ),
         SizedBox(height: 32),
         Text(
@@ -303,6 +473,8 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
             )
           else if (section == 'experience')
             _buildExperiencePreview(sectionData)
+          else if (section == 'education')
+            _buildEducationPreview(sectionData)
           else if (section == 'projects')
             _buildProjectsPreview(sectionData)
           else if (section == 'skills')
@@ -610,6 +782,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
                       'text': 'Add content here...'
                     };
                   });
+                  _triggerAutoSave();
                   Navigator.pop(context);
                 }
               },
@@ -627,6 +800,8 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
       _editAboutSection();
     } else if (section == 'experience') {
       _editExperienceSection();
+    } else if (section == 'education') {
+      _editEducationSection();
     } else if (section == 'projects') {
       _editProjectsSection();
     } else if (section == 'skills') {
@@ -667,6 +842,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
               setState(() {
                 _content['about']['text'] = controller.text;
               });
+              _triggerAutoSave();
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF667eea)),
@@ -748,6 +924,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
                 setState(() {
                   _content['experience']['items'] = experiences;
                 });
+                _triggerAutoSave();
                 Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF667eea)),
@@ -857,6 +1034,313 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
     );
   }
   
+  void _editEducationSection() {
+    final educations = List<Map<String, String>>.from(
+      (_content['education']['items'] as List?)?.map((e) => Map<String, String>.from(e)) ?? []
+    );
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Edit Education'),
+          content: Container(
+            width: 500,
+            height: 400,
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: educations.length,
+                    itemBuilder: (context, index) {
+                      return Card(
+                        child: ListTile(
+                          title: Text(educations[index]['degree'] ?? 'Education ${index + 1}'),
+                          subtitle: Text(educations[index]['institution'] ?? ''),
+                          trailing: IconButton(
+                            icon: Icon(Icons.delete),
+                            onPressed: () {
+                              setDialogState(() {
+                                educations.removeAt(index);
+                              });
+                            },
+                          ),
+                          onTap: () {
+                            _editEducation(educations, index, setDialogState);
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setDialogState(() {
+                      educations.add({
+                        'institution': '',
+                        'degree': '',
+                        'field': '',
+                        'startDate': '',
+                        'endDate': '',
+                        'location': '',
+                        'description': '',
+                      });
+                    });
+                    _editEducation(educations, educations.length - 1, setDialogState);
+                  },
+                  icon: Icon(Icons.add),
+                  label: Text('Add Education'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF667eea)),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _content['education']['items'] = educations;
+                });
+                _triggerAutoSave();
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF667eea)),
+              child: Text('Save All'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  void _editEducation(List<Map<String, String>> educations, int index, StateSetter setDialogState) {
+    final institutionController = TextEditingController(text: educations[index]['institution']);
+    final degreeController = TextEditingController(text: educations[index]['degree']);
+    final fieldController = TextEditingController(text: educations[index]['field'] ?? '');
+    final startDateController = TextEditingController(text: educations[index]['startDate']);
+    final endDateController = TextEditingController(text: educations[index]['endDate'] ?? '');
+    final locationController = TextEditingController(text: educations[index]['location'] ?? '');
+    final descriptionController = TextEditingController(text: educations[index]['description'] ?? '');
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Edit Education'),
+        content: Container(
+          width: 400,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: institutionController,
+                  decoration: InputDecoration(
+                    labelText: 'Institution *',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: degreeController,
+                  decoration: InputDecoration(
+                    labelText: 'Degree * (e.g., Bachelor of Science)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: fieldController,
+                  decoration: InputDecoration(
+                    labelText: 'Field of Study (e.g., Computer Science)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: startDateController,
+                  decoration: InputDecoration(
+                    labelText: 'Start Date * (e.g., 2018)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: endDateController,
+                  decoration: InputDecoration(
+                    labelText: 'End Date (e.g., 2022 or "Present")',
+                    border: OutlineInputBorder(),
+                    helperText: 'Leave empty if current',
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: locationController,
+                  decoration: InputDecoration(
+                    labelText: 'Location',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: descriptionController,
+                  decoration: InputDecoration(
+                    labelText: 'Description (e.g., GPA, Honors, Relevant Coursework)',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setDialogState(() {
+                educations[index] = {
+                  'institution': institutionController.text,
+                  'degree': degreeController.text,
+                  'field': fieldController.text,
+                  'startDate': startDateController.text,
+                  'endDate': endDateController.text,
+                  'location': locationController.text,
+                  'description': descriptionController.text,
+                };
+              });
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF667eea)),
+            child: Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildEducationPreview(Map<String, dynamic> data) {
+    final educations = (data['items'] as List?) ?? [];
+    if (educations.isEmpty) {
+      return Text(
+        'Click edit to add your education...',
+        style: TextStyle(
+          fontSize: 16,
+          color: _isDarkMode ? Colors.white70 : Colors.grey[700],
+        ),
+      );
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: educations.map<Widget>((edu) {
+        final institution = edu['institution'] ?? '';
+        final degree = edu['degree'] ?? '';
+        final field = edu['field'] ?? '';
+        final startDate = edu['startDate'] ?? '';
+        final endDate = edu['endDate'] ?? '';
+        final location = edu['location'] ?? '';
+        final description = edu['description'] ?? '';
+        
+        return Container(
+          margin: EdgeInsets.only(bottom: 24),
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _isDarkMode ? Colors.grey[800] : Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (degree.isNotEmpty)
+                Text(
+                  degree,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _isDarkMode ? AppColors.white : AppColors.dark,
+                  ),
+                ),
+              if (field.isNotEmpty) ...[
+                SizedBox(height: 4),
+                Text(
+                  field,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+              if (institution.isNotEmpty) ...[
+                SizedBox(height: 4),
+                Text(
+                  institution,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
+                  ),
+                ),
+              ],
+              if (startDate.isNotEmpty || endDate.isNotEmpty) ...[
+                SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.calendar_today, size: 14, color: Color(0xFF667eea)),
+                    SizedBox(width: 4),
+                    Text(
+                      endDate.isEmpty 
+                          ? startDate 
+                          : '$startDate - $endDate',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (location.isNotEmpty) ...[
+                SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.location_on, size: 14, color: Color(0xFF667eea)),
+                    SizedBox(width: 4),
+                    Text(
+                      location,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (description.isNotEmpty) ...[
+                SizedBox(height: 12),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+  
   void _editProjectsSection() {
     final projects = List<Map<String, String>>.from(
       (_content['projects']['items'] as List?)?.map((p) => Map<String, String>.from(p)) ?? []
@@ -921,6 +1405,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
                 setState(() {
                   _content['projects']['items'] = projects;
                 });
+                _triggerAutoSave();
                 Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF667eea)),
@@ -1077,6 +1562,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
                 setState(() {
                   _content['skills']['items'] = skills;
                 });
+                _triggerAutoSave();
                 Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF667eea)),
@@ -1143,6 +1629,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
                 _content['contact']['phone'] = phoneController.text;
                 _content['contact']['location'] = locationController.text;
               });
+              _triggerAutoSave();
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF667eea)),
@@ -1181,6 +1668,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
               setState(() {
                 _content[section]['text'] = controller.text;
               });
+              _triggerAutoSave();
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF667eea)),
@@ -1191,23 +1679,42 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
     );
   }
   
-  Future<void> _savePortfolio() async {
+  Future<bool?> _savePortfolio() async {
     if (_titleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Please add a portfolio title')),
       );
-      return;
+      return false;
     }
     
     if (_slugController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Please add a URL slug')),
       );
-      return;
+      return false;
     }
     
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
+      
+      // Check if user is authenticated
+      if (authService.token == null || !authService.isAuthenticated) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Please log in to save your portfolio'),
+            backgroundColor: Colors.orange,
+            action: SnackBarAction(
+              label: 'Login',
+              textColor: Colors.white,
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, '/auth');
+              },
+            ),
+          ),
+        );
+        return false;
+      }
+      
       final contentToSave = Map<String, dynamic>.from(_content);
       contentToSave['sections'] = _sections;
       
@@ -1232,26 +1739,56 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
         });
       }
       
+      _hasUnsavedChanges = false;
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_portfolioId != null ? 'Portfolio updated successfully!' : 'Portfolio saved successfully!'),
           backgroundColor: Colors.green,
         ),
       );
+      
+      // Return true to indicate successful save (for dashboard refresh)
+      return true;
     } catch (e) {
+      String errorMessage = 'Failed to save portfolio';
+      if (e.toString().contains('Unauthorized') || e.toString().contains('401')) {
+        errorMessage = 'Please log in to save your portfolio';
+        // Optionally redirect to login
+        Future.delayed(Duration(seconds: 2), () {
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/auth');
+          }
+        });
+      } else if (e.toString().contains('403')) {
+        errorMessage = 'You do not have permission to save this portfolio';
+      } else if (e.toString().contains('400')) {
+        errorMessage = 'Invalid portfolio data. Please check your inputs.';
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to save: ${e.toString()}'),
+          content: Text(errorMessage),
           backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
         ),
       );
+      return false;
     }
   }
   
   Future<void> _publishPortfolio() async {
     if (_portfolioId == null) {
-      await _savePortfolio();
-      if (_portfolioId == null) return;
+      final saved = await _savePortfolio();
+      if (saved != true || _portfolioId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Please save the portfolio before publishing'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
     }
     
     if (_slugController.text.isEmpty) {
@@ -1263,6 +1800,24 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
     
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
+      
+      if (authService.token == null || !authService.isAuthenticated) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Please log in to publish your portfolio'),
+            backgroundColor: Colors.orange,
+            action: SnackBarAction(
+              label: 'Login',
+              textColor: Colors.white,
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, '/auth');
+              },
+            ),
+          ),
+        );
+        return;
+      }
+      
       await ApiService.post('/portfolios/$_portfolioId/publish', {}, token: authService.token);
       
       // Show success message briefly, then redirect
@@ -1277,13 +1832,30 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
       // Wait a moment for the snackbar to show, then redirect
       await Future.delayed(Duration(milliseconds: 500));
       
-      // Navigate to the published portfolio page
-      Navigator.pushReplacementNamed(context, '/p/${_slugController.text}');
+      if (mounted) {
+        // Navigate to the published portfolio page
+        Navigator.pushNamed(context, '/p/${_slugController.text}').then((_) {
+          // After viewing, go back to dashboard
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          }
+        });
+      }
     } catch (e) {
+      String errorMessage = 'Failed to publish portfolio';
+      if (e.toString().contains('Unauthorized') || e.toString().contains('401')) {
+        errorMessage = 'Please log in to publish your portfolio';
+      } else if (e.toString().contains('403') || e.toString().contains('Access denied')) {
+        errorMessage = 'You do not have permission to publish this portfolio';
+      } else if (e.toString().contains('404') || e.toString().contains('not found')) {
+        errorMessage = 'Portfolio not found. Please save it first.';
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to publish: ${e.toString()}'),
+          content: Text(errorMessage),
           backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
         ),
       );
     }

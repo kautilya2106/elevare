@@ -63,8 +63,8 @@ class SettingsPage extends StatelessWidget {
                 ListTile(
                   leading: Icon(Icons.logout, color: Colors.red),
                   title: Text('Logout', style: TextStyle(color: Colors.red)),
-                  onTap: () {
-                    authService.logout();
+                  onTap: () async {
+                    await authService.logout();
                     Navigator.pushReplacementNamed(context, '/');
                   },
                 ),

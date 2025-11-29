@@ -147,6 +147,8 @@ class _PublicPortfolioPageState extends State<PublicPortfolioPage> {
                   _buildContactSection(sectionData, isDark)
                 else if (sectionKey == 'experience')
                   _buildExperienceSection(sectionData, isDark)
+                else if (sectionKey == 'education')
+                  _buildEducationSection(sectionData, isDark)
                 else if (sectionData['text'] != null)
                   Text(
                     sectionData['text'].toString(),
@@ -223,6 +225,133 @@ class _PublicPortfolioPageState extends State<PublicPortfolioPage> {
                 SizedBox(height: 4),
                 Text(
                   company,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDark ? Colors.white70 : Colors.grey[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+              if (startDate.isNotEmpty || endDate.isNotEmpty || location.isNotEmpty) ...[
+                SizedBox(height: 12),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 8,
+                  children: [
+                    if (startDate.isNotEmpty || endDate.isNotEmpty)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.calendar_today, size: 16, color: AppColors.primary),
+                          SizedBox(width: 6),
+                          Text(
+                            endDate.isEmpty 
+                                ? startDate 
+                                : '$startDate - $endDate',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isDark ? Colors.white70 : Colors.grey[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (location.isNotEmpty)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.location_on, size: 16, color: AppColors.primary),
+                          SizedBox(width: 6),
+                          Text(
+                            location,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isDark ? Colors.white70 : Colors.grey[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ],
+              if (description.isNotEmpty) ...[
+                SizedBox(height: 16),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: isDark ? Colors.white70 : Colors.grey[700],
+                    height: 1.6,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+  
+  Widget _buildEducationSection(Map<String, dynamic> sectionData, bool isDark) {
+    final educations = (sectionData['items'] as List?) ?? [];
+    if (educations.isEmpty) {
+      return Text(
+        'No education listed',
+        style: TextStyle(
+          fontSize: 16,
+          color: isDark ? Colors.white70 : Colors.grey[600],
+        ),
+      );
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: educations.map<Widget>((edu) {
+        final institution = edu['institution']?.toString() ?? '';
+        final degree = edu['degree']?.toString() ?? '';
+        final field = edu['field']?.toString() ?? '';
+        final startDate = edu['startDate']?.toString() ?? '';
+        final endDate = edu['endDate']?.toString() ?? '';
+        final location = edu['location']?.toString() ?? '';
+        final description = edu['description']?.toString() ?? '';
+        
+        return Container(
+          margin: EdgeInsets.only(bottom: 32),
+          padding: EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isDark ? Color(0xFF1E1E1E) : Colors.grey[50],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (degree.isNotEmpty)
+                Text(
+                  degree,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              if (field.isNotEmpty) ...[
+                SizedBox(height: 4),
+                Text(
+                  field,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDark ? Colors.white70 : Colors.grey[700],
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+              if (institution.isNotEmpty) ...[
+                SizedBox(height: 4),
+                Text(
+                  institution,
                   style: TextStyle(
                     fontSize: 16,
                     color: isDark ? Colors.white70 : Colors.grey[700],
