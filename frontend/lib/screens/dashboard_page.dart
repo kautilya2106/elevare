@@ -43,7 +43,9 @@ class _DashboardPageState extends State<DashboardPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Dashboard'),
-        backgroundColor: AppColors.primary,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark 
+            ? AppColors.darkGray 
+            : AppColors.primary,
         actions: [
           Consumer<ThemeService>(
             builder: (context, themeService, child) {
@@ -90,9 +92,15 @@ class _DashboardPageState extends State<DashboardPage> {
   }
   
   Widget _buildSidebar(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final sidebarColor = isDark ? AppColors.darkGray : AppColors.veryLightGray;
+    final textColor = AppColors.textOnLight(context);
+    final iconColor = isDark ? AppColors.primaryLight : AppColors.primary;
+    final secondaryIconColor = AppColors.textSecondary(context);
+    
     return Container(
       width: 250,
-      color: AppColors.veryLightGray,
+      color: sidebarColor,
       child: ListView(
         children: [
           DrawerHeader(
@@ -125,32 +133,32 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           ),
           ListTile(
-            leading: Icon(Icons.dashboard, color: AppColors.primary),
-            title: Text('Dashboard', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.dark)),
+            leading: Icon(Icons.dashboard, color: iconColor),
+            title: Text('Dashboard', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
             selected: true,
             selectedTileColor: AppColors.primary.withOpacity(0.1),
           ),
           ListTile(
-            leading: Icon(Icons.web, color: AppColors.mediumGray),
-            title: Text('Portfolios', style: TextStyle(color: AppColors.dark)),
+            leading: Icon(Icons.web, color: secondaryIconColor),
+            title: Text('Portfolios', style: TextStyle(color: textColor)),
             onTap: () {},
             hoverColor: AppColors.primary.withOpacity(0.05),
           ),
           ListTile(
-            leading: Icon(Icons.palette, color: AppColors.mediumGray),
-            title: Text('Templates', style: TextStyle(color: AppColors.dark)),
+            leading: Icon(Icons.palette, color: secondaryIconColor),
+            title: Text('Templates', style: TextStyle(color: textColor)),
             onTap: () => Navigator.pushNamed(context, '/templates'),
             hoverColor: AppColors.primary.withOpacity(0.05),
           ),
           ListTile(
-            leading: Icon(Icons.analytics, color: AppColors.mediumGray),
-            title: Text('Analytics', style: TextStyle(color: AppColors.dark)),
+            leading: Icon(Icons.analytics, color: secondaryIconColor),
+            title: Text('Analytics', style: TextStyle(color: textColor)),
             onTap: () {},
             hoverColor: AppColors.primary.withOpacity(0.05),
           ),
           ListTile(
-            leading: Icon(Icons.settings, color: AppColors.mediumGray),
-            title: Text('Settings', style: TextStyle(color: AppColors.dark)),
+            leading: Icon(Icons.settings, color: secondaryIconColor),
+            title: Text('Settings', style: TextStyle(color: textColor)),
             onTap: () => Navigator.pushNamed(context, '/settings'),
             hoverColor: AppColors.primary.withOpacity(0.05),
           ),
@@ -160,8 +168,12 @@ class _DashboardPageState extends State<DashboardPage> {
   }
   
   Widget _buildMainContent() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? AppColors.dark : AppColors.white;
+    final textColor = AppColors.textOnLight(context);
+    
     return Container(
-      color: AppColors.white,
+      color: backgroundColor,
       child: Padding(
         padding: EdgeInsets.all(40),
         child: Column(
@@ -169,7 +181,7 @@ class _DashboardPageState extends State<DashboardPage> {
         children: [
           Text(
             'My Portfolios',
-            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.dark),
+            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textColor),
           ),
           SizedBox(height: 32),
           _portfolios.isEmpty
@@ -193,20 +205,24 @@ class _DashboardPageState extends State<DashboardPage> {
   }
   
   Widget _buildEmptyState() {
+    final iconColor = AppColors.textMuted(context);
+    final primaryTextColor = AppColors.textSecondary(context);
+    final secondaryTextColor = AppColors.textMuted(context);
+    
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.web_asset_off, size: 100, color: AppColors.lightGray),
+          Icon(Icons.web_asset_off, size: 100, color: iconColor),
           SizedBox(height: 20),
           Text(
             'No portfolios yet',
-            style: TextStyle(fontSize: 24, color: AppColors.mediumGray, fontWeight: FontWeight.w500),
+            style: TextStyle(fontSize: 24, color: primaryTextColor, fontWeight: FontWeight.w500),
           ),
           SizedBox(height: 12),
           Text(
             'Create your first portfolio to get started',
-            style: TextStyle(fontSize: 16, color: AppColors.lightGray),
+            style: TextStyle(fontSize: 16, color: secondaryTextColor),
           ),
         ],
       ),
@@ -214,6 +230,11 @@ class _DashboardPageState extends State<DashboardPage> {
   }
   
   Widget _buildPortfolioCard(Map<String, dynamic> portfolio) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppColors.darkGray : AppColors.white;
+    final textColor = AppColors.textOnLight(context);
+    final secondaryTextColor = AppColors.textSecondary(context);
+    
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: Duration(milliseconds: 300),
@@ -226,14 +247,14 @@ class _DashboardPageState extends State<DashboardPage> {
             child: Card(
               elevation: 2,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              color: AppColors.white,
+              color: cardColor,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Stack(
                     children: [
                       InkWell(
-                        onTap: () => Navigator.pushNamed(context, '/builder', arguments: portfolio['id']),
+                        onTap: () => Navigator.pushNamed(context, '/builder', arguments: {'portfolioId': portfolio['id']}),
                         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                         child: Container(
                           height: 180,
@@ -295,7 +316,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         right: 8,
                         child: PopupMenuButton<String>(
                           icon: Icon(Icons.more_vert, color: Colors.white),
-                          color: Colors.white,
+                          color: isDark ? AppColors.darkGray : Colors.white,
                           onSelected: (value) {
                             if (value == 'delete') {
                               _deletePortfolio(portfolio['id'], portfolio['title']);
@@ -319,15 +340,15 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   Expanded(
                     child: InkWell(
-                      onTap: () => Navigator.pushNamed(context, '/builder', arguments: portfolio['id']),
-                      child: Padding(
+                      onTap: () => Navigator.pushNamed(context, '/builder', arguments: {'portfolioId': portfolio['id']}),
+                        child: Padding(
                         padding: EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               portfolio['title'] ?? 'Untitled',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -337,13 +358,13 @@ class _DashboardPageState extends State<DashboardPage> {
                                 Icon(
                                   portfolio['isPublished'] ? Icons.public : Icons.public_off,
                                   size: 16,
-                                  color: portfolio['isPublished'] ? AppColors.success : AppColors.mediumGray,
+                                  color: portfolio['isPublished'] ? AppColors.success : secondaryTextColor,
                                 ),
                                 SizedBox(width: 4),
                       Text(
                         portfolio['isPublished'] ? 'Published' : 'Draft',
                         style: TextStyle(
-                          color: portfolio['isPublished'] ? AppColors.success : AppColors.mediumGray,
+                          color: portfolio['isPublished'] ? AppColors.success : secondaryTextColor,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
@@ -353,7 +374,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             SizedBox(height: 8),
                   Text(
                     'Updated ${_formatDate(portfolio['updatedAt'])}',
-                    style: TextStyle(fontSize: 12, color: AppColors.mediumGray),
+                    style: TextStyle(fontSize: 12, color: secondaryTextColor),
                   ),
                             if (portfolio['isPublished']) ...[
                               SizedBox(height: 12),
@@ -365,6 +386,10 @@ class _DashboardPageState extends State<DashboardPage> {
                                   label: Text('Copy Link'),
                                   style: OutlinedButton.styleFrom(
                                     padding: EdgeInsets.symmetric(vertical: 8),
+                                    foregroundColor: isDark ? AppColors.primaryLight : AppColors.primary,
+                                    side: BorderSide(
+                                      color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                    ),
                                   ),
                                 ),
                               ),

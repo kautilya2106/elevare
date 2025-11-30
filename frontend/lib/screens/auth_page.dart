@@ -9,6 +9,13 @@ import '../theme/app_colors.dart';
 class AuthPage extends StatefulWidget {
   @override
   _AuthPageState createState() => _AuthPageState();
+  
+  static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
+    return MaterialPageRoute(
+      builder: (context) => AuthPage(),
+      settings: settings,
+    );
+  }
 }
 
 class _AuthPageState extends State<AuthPage> {
@@ -23,6 +30,10 @@ class _AuthPageState extends State<AuthPage> {
   
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppColors.darkGray : AppColors.white;
+    final textColor = AppColors.textOnLight(context);
+    
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -33,7 +44,7 @@ class _AuthPageState extends State<AuthPage> {
             width: 450,
             padding: EdgeInsets.all(40),
             decoration: BoxDecoration(
-              color: AppColors.white,
+              color: cardColor,
               borderRadius: BorderRadius.circular(16),
               boxShadow: AppColors.elevatedShadow,
             ),
@@ -46,7 +57,7 @@ class _AuthPageState extends State<AuthPage> {
                   SizedBox(height: 32),
                   Text(
                     isLogin ? 'Welcome Back' : 'Create Account',
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textColor),
                   ),
                   SizedBox(height: 32),
                   if (!isLogin) ...[
@@ -149,7 +160,15 @@ class _AuthPageState extends State<AuthPage> {
     setState(() => _isLoading = false);
     
     if (success) {
-      Navigator.pushReplacementNamed(context, '/dashboard');
+      // Check if we should return to a specific route
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Map && args['returnRoute'] != null) {
+        final returnRoute = args['returnRoute'] as String;
+        final returnArgs = args['returnArgs'];
+        Navigator.pushReplacementNamed(context, returnRoute, arguments: returnArgs);
+      } else {
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      }
     } else {
       setState(() => _hasPasswordError = true);
       ScaffoldMessenger.of(context).showSnackBar(

@@ -1,8 +1,10 @@
 // lib/screens/landing_page.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import '../widgets/logo_widget.dart';
 import '../theme/app_colors.dart';
+import '../services/theme_service.dart';
 
 class LandingPage extends StatefulWidget {
   @override
@@ -36,37 +38,59 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
   
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildHeroSection(),
-            _buildHowItWorks(),
-            _buildTemplatePreview(),
-            _buildTestimonials(),
-            _buildAboutUs(),
-            _buildContact(),
-            _buildFAQ(),
-            _buildFooter(),
-          ],
-        ),
-      ),
+    return Consumer<ThemeService>(
+      builder: (context, themeService, child) {
+        return Scaffold(
+          body: SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildHeader(),
+                _buildHeroSection(),
+                _buildHowItWorks(),
+                _buildTemplatePreview(),
+                _buildTestimonials(),
+                _buildAboutUs(),
+                _buildContact(),
+                _buildFAQ(),
+                _buildFooter(),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
   
   Widget _buildHeader() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? AppColors.dark : AppColors.white;
+    final textColor = AppColors.textOnLight(context);
+    
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+      color: backgroundColor,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           LogoWidget(fontSize: 28, showTagline: false),
           Row(
             children: [
+              Consumer<ThemeService>(
+                builder: (context, themeService, child) {
+                  return IconButton(
+                    icon: Icon(
+                      themeService.isDarkMode(context) ? Icons.light_mode : Icons.dark_mode,
+                      color: textColor,
+                    ),
+                    onPressed: () => themeService.toggleTheme(),
+                    tooltip: themeService.isDarkMode(context) ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+                  );
+                },
+              ),
+              SizedBox(width: 8),
               TextButton(
                 onPressed: () => Navigator.pushNamed(context, '/templates'),
-                child: Text('Templates', style: TextStyle(fontSize: 16)),
+                child: Text('Templates', style: TextStyle(fontSize: 16, color: textColor)),
               ),
               SizedBox(width: 16),
               OutlinedButton(
@@ -276,13 +300,18 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
   }
   
   Widget _buildHowItWorks() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = AppColors.textOnLight(context);
+    final backgroundColor = isDark ? AppColors.dark : AppColors.white;
+    
     return Container(
       padding: EdgeInsets.symmetric(vertical: 80, horizontal: 40),
+      color: isDark ? AppColors.dark : AppColors.white,
       child: Column(
         children: [
           Text(
             'How It Works',
-            style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: textColor),
           ),
           SizedBox(height: 60),
           Row(
@@ -299,11 +328,16 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
   }
   
   Widget _buildStep(String number, String title, String description, IconData icon) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppColors.darkGray : AppColors.white;
+    final textColor = AppColors.textOnLight(context);
+    final secondaryTextColor = AppColors.textSecondary(context);
+    
     return Container(
       width: 300,
       padding: EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -327,12 +361,12 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
           SizedBox(height: 20),
           Text(
             title,
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor),
           ),
           SizedBox(height: 12),
           Text(
             description,
-            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 16, color: secondaryTextColor),
             textAlign: TextAlign.center,
           ),
         ],
@@ -341,14 +375,18 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
   }
   
   Widget _buildTemplatePreview() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? AppColors.darkGray : Colors.grey[50];
+    final textColor = AppColors.textOnLight(context);
+    
     return Container(
       padding: EdgeInsets.symmetric(vertical: 80, horizontal: 40),
-      color: Colors.grey[50],
+      color: backgroundColor,
       child: Column(
         children: [
           Text(
             'Beautiful Templates',
-            style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: textColor),
           ),
           SizedBox(height: 60),
           Wrap(
@@ -366,7 +404,12 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
   }
   
   Widget _buildTemplateCard(String name, String description) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppColors.darkGray : AppColors.white;
+    final textColor = AppColors.textOnLight(context);
+    final secondaryTextColor = AppColors.textSecondary(context);
     bool isHovered = false;
+    
     return StatefulBuilder(
       builder: (context, setState) => MouseRegion(
         onEnter: (_) => setState(() => isHovered = true),
@@ -377,7 +420,7 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
           height: 400,
           transform: Matrix4.identity()..translate(0.0, isHovered ? -10.0 : 0.0),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardColor,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
@@ -407,12 +450,12 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                   children: [
                     Text(
                       name,
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor),
                     ),
                     SizedBox(height: 8),
                     Text(
                       description,
-                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 16, color: secondaryTextColor),
                     ),
                   ],
                 ),
@@ -425,13 +468,18 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
   }
   
   Widget _buildTestimonials() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? AppColors.dark : AppColors.white;
+    final textColor = AppColors.textOnLight(context);
+    
     return Container(
       padding: EdgeInsets.symmetric(vertical: 80, horizontal: 40),
+      color: backgroundColor,
       child: Column(
         children: [
           Text(
             'What Our Users Say',
-            style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: textColor),
           ),
           SizedBox(height: 60),
           Row(
@@ -455,11 +503,16 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
   }
   
   Widget _buildTestimonial(String text, String name, String role) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppColors.darkGray : AppColors.white;
+    final textColor = AppColors.textOnLight(context);
+    final secondaryTextColor = AppColors.textSecondary(context);
+    
     return Container(
       width: 400,
       padding: EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -473,17 +526,17 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
         children: [
           Text(
             '"$text"',
-            style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
+            style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic, color: textColor),
             textAlign: TextAlign.center,
           ),
           SizedBox(height: 20),
           Text(
             name,
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
           ),
           Text(
             role,
-            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 16, color: secondaryTextColor),
           ),
         ],
       ),
@@ -602,16 +655,21 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
   }
   
   Widget _buildAboutUs() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? AppColors.darkGray : Colors.grey[50];
+    final textColor = AppColors.textOnLight(context);
+    final secondaryTextColor = AppColors.textSecondary(context);
+    
     return Container(
       padding: EdgeInsets.symmetric(vertical: 80, horizontal: 40),
-      color: Colors.grey[50],
+      color: backgroundColor,
       child: Container(
         constraints: BoxConstraints(maxWidth: 1200),
         child: Column(
           children: [
             Text(
               'About Us',
-              style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: textColor),
             ),
             SizedBox(height: 40),
             Row(
@@ -632,12 +690,12 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                       SizedBox(height: 24),
                       Text(
                         'Our Mission',
-                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textColor),
                       ),
                       SizedBox(height: 16),
                       Text(
                         'At Elevare, we believe everyone deserves a beautiful portfolio to showcase their work. Our mission is to democratize portfolio creation by providing a free, easy-to-use platform that empowers creators, developers, designers, and professionals to build stunning portfolios without any technical knowledge.',
-                        style: TextStyle(fontSize: 16, color: Colors.grey[700], height: 1.6),
+                        style: TextStyle(fontSize: 16, color: secondaryTextColor, height: 1.6),
                       ),
                     ],
                   ),
@@ -660,12 +718,12 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                       SizedBox(height: 24),
                       Text(
                         'Why Elevare?',
-                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textColor),
                       ),
                       SizedBox(height: 16),
                       Text(
                         'We\'re committed to keeping Elevare 100% free forever. No hidden costs, no premium tiers, no credit card required. We provide all features, all templates, and unlimited portfolios to everyone. Your success is our success, and we\'re here to help you elevate your professional presence.',
-                        style: TextStyle(fontSize: 16, color: Colors.grey[700], height: 1.6),
+                        style: TextStyle(fontSize: 16, color: secondaryTextColor, height: 1.6),
                       ),
                     ],
                   ),
@@ -688,12 +746,12 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                       SizedBox(height: 24),
                       Text(
                         'Our Community',
-                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textColor),
                       ),
                       SizedBox(height: 16),
                       Text(
                         'Join thousands of creators who trust Elevare to showcase their work. From developers and designers to photographers and writers, our platform serves professionals across all industries. We\'re constantly improving based on your feedback.',
-                        style: TextStyle(fontSize: 16, color: Colors.grey[700], height: 1.6),
+                        style: TextStyle(fontSize: 16, color: secondaryTextColor, height: 1.6),
                       ),
                     ],
                   ),
@@ -707,20 +765,26 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
   }
   
   Widget _buildContact() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? AppColors.dark : AppColors.white;
+    final textColor = AppColors.textOnLight(context);
+    final secondaryTextColor = AppColors.textSecondary(context);
+    
     return Container(
       padding: EdgeInsets.symmetric(vertical: 80, horizontal: 40),
+      color: backgroundColor,
       child: Container(
         constraints: BoxConstraints(maxWidth: 800),
         child: Column(
           children: [
             Text(
               'Get In Touch',
-              style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: textColor),
             ),
             SizedBox(height: 16),
             Text(
               'Have questions or feedback? We\'d love to hear from you!',
-              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 18, color: secondaryTextColor),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 60),
@@ -753,15 +817,15 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
             Container(
               padding: EdgeInsets.all(32),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: isDark ? AppColors.darkGray : Colors.grey[50],
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey[200]!),
+                border: Border.all(color: isDark ? AppColors.mediumGray : Colors.grey[200]!),
               ),
               child: Column(
                 children: [
                   Text(
                     'Follow Us',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor),
                   ),
                   SizedBox(height: 24),
                   Row(
@@ -786,11 +850,16 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
   }
   
   Widget _buildContactCard({required IconData icon, required String title, required String subtitle, required Color color}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppColors.darkGray : AppColors.white;
+    final textColor = AppColors.textOnLight(context);
+    final secondaryTextColor = AppColors.textSecondary(context);
+    
     return Container(
       width: 200,
       padding: EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -813,12 +882,12 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
           SizedBox(height: 16),
           Text(
             title,
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
           ),
           SizedBox(height: 8),
           Text(
             subtitle,
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 14, color: secondaryTextColor),
             textAlign: TextAlign.center,
           ),
         ],
@@ -838,13 +907,18 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
   }
   
   Widget _buildFAQ() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? AppColors.dark : AppColors.white;
+    final textColor = AppColors.textOnLight(context);
+    
     return Container(
       padding: EdgeInsets.symmetric(vertical: 80, horizontal: 40),
+      color: backgroundColor,
       child: Column(
         children: [
           Text(
             'Frequently Asked Questions',
-            style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: textColor),
           ),
           SizedBox(height: 60),
           Container(
@@ -864,17 +938,21 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
   }
   
   Widget _buildFAQItem(String question, String answer) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = AppColors.textOnLight(context);
+    final secondaryTextColor = AppColors.textSecondary(context);
+    
     return ExpansionTile(
       title: Text(
         question,
-        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
       ),
       children: [
         Padding(
           padding: EdgeInsets.all(16),
           child: Text(
             answer,
-            style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+            style: TextStyle(fontSize: 16, color: secondaryTextColor),
           ),
         ),
       ],
