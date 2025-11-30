@@ -719,6 +719,43 @@ class TemplateHandler {
       return Response.internalServerError(body: json.encode({'error': 'Failed to fetch templates'}));
     }
   }
+  
+  static Future<Response> getById(Request request, String id) async {
+    try {
+      final conn = await Database.connection;
+      final result = await conn.execute(
+        'SELECT * FROM templates WHERE id = \$1 AND is_approved = true',
+        parameters: [id],
+      );
+      
+      if (result.isEmpty) {
+        return Response.notFound(json.encode({'error': 'Template not found'}));
+      }
+      
+      final data = result.first.toColumnMap();
+      
+      // Handle content - it might be a String (JSON) or already decoded Map
+      dynamic content;
+      if (data['content'] is String) {
+        content = json.decode(data['content'] as String);
+      } else {
+        content = data['content']; // Already decoded
+      }
+      
+      return Response.ok(json.encode({
+        'id': data['id'],
+        'name': data['name'],
+        'description': data['description'],
+        'thumbnailUrl': data['thumbnail_url'],
+        'category': data['category'],
+        'isFeatured': data['is_featured'],
+        'downloads': data['downloads'],
+        'content': content,
+      }), headers: {'Content-Type': 'application/json'});
+    } catch (e) {
+      return Response.internalServerError(body: json.encode({'error': 'Failed to fetch template: ${e.toString()}'}));
+    }
+  }
 }
 
 // Analytics Handler
@@ -769,11 +806,15 @@ void main() async {
   // Portfolio routes
   router.post('/api/portfolios', Pipeline().addMiddleware(authMiddleware()).addHandler(PortfolioHandler.create));
   router.get('/api/portfolios', Pipeline().addMiddleware(authMiddleware()).addHandler(PortfolioHandler.list));
+  // Route for getting portfolio by ID (must come before slug route)
   router.get('/api/portfolios/id/<id>', Pipeline().addMiddleware(authMiddleware()).addHandler((Request request) {
-    // Path will be: /api/portfolios/id/{uuid}
-    // Extract ID from the last path segment
     final pathSegments = request.url.pathSegments;
-    final id = pathSegments.isNotEmpty ? pathSegments.last : '';
+    // Path will be: api/portfolios/id/{uuid}
+    // segments: ['portfolios', 'id', '{uuid}'] or ['api', 'portfolios', 'id', '{uuid}']
+    final idIndex = pathSegments.indexOf('id');
+    final id = (idIndex >= 0 && idIndex < pathSegments.length - 1) 
+        ? pathSegments[idIndex + 1] 
+        : '';
     if (id.isEmpty) {
       return Response.badRequest(body: json.encode({'error': 'Portfolio ID is required'}));
     }
@@ -796,6 +837,7 @@ void main() async {
   
   // Template routes
   router.get('/api/templates', TemplateHandler.list);
+  router.get('/api/templates/<id>', (Request request, String id) => TemplateHandler.getById(request, id));
   
   // Analytics routes
   router.get('/api/analytics/<portfolioId>', Pipeline().addMiddleware(authMiddleware()).addHandler((Request request) {

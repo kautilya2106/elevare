@@ -147,8 +147,16 @@ class ElevareApp extends StatelessWidget {
             '/dashboard': (context) => DashboardPage(),
             '/builder': (context) {
               final args = ModalRoute.of(context)?.settings.arguments;
-              final portfolioId = args is String ? args : null;
-              return PortfolioBuilderPage(portfolioId: portfolioId);
+              if (args is Map) {
+                return PortfolioBuilderPage(
+                  portfolioId: args['portfolioId'],
+                  templateId: args['templateId'],
+                );
+              } else if (args is String) {
+                // Backward compatibility: if string is passed, treat as portfolioId
+                return PortfolioBuilderPage(portfolioId: args);
+              }
+              return PortfolioBuilderPage();
             },
             '/templates': (context) => TemplatesPage(),
             '/settings': (context) => SettingsPage(),

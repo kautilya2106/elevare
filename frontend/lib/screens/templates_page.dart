@@ -466,7 +466,7 @@ class _TemplatesPageState extends State<TemplatesPage> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              Navigator.pushNamed(context, '/builder', arguments: template['id']);
+              Navigator.pushNamed(context, '/builder', arguments: {'templateId': template['id']});
             },
             child: Text('Create Portfolio'),
           ),

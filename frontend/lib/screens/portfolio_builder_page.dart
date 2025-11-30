@@ -8,8 +8,9 @@ import '../theme/app_colors.dart';
 
 class PortfolioBuilderPage extends StatefulWidget {
   final String? portfolioId;
+  final String? templateId;
   
-  PortfolioBuilderPage({this.portfolioId});
+  PortfolioBuilderPage({this.portfolioId, this.templateId});
   
   @override
   _PortfolioBuilderPageState createState() => _PortfolioBuilderPageState();
@@ -18,10 +19,11 @@ class PortfolioBuilderPage extends StatefulWidget {
 class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
   final _titleController = TextEditingController();
   final _slugController = TextEditingController();
-  List<String> _sections = ['about', 'experience', 'projects', 'skills', 'contact'];
+  List<String> _sections = ['about', 'experience', 'education', 'projects', 'skills', 'contact'];
   Map<String, dynamic> _content = {
     'about': {'title': 'About Me', 'text': 'I am a passionate developer...'},
     'experience': {'title': 'Experience', 'items': []},
+    'education': {'title': 'Education', 'items': []},
     'projects': {'title': 'Projects', 'items': []},
     'skills': {'title': 'Skills', 'items': []},
     'contact': {'title': 'Contact', 'email': '', 'phone': '', 'location': ''},
@@ -34,10 +36,163 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
   void initState() {
     super.initState();
     _portfolioId = widget.portfolioId;
-    if (_portfolioId != null) {
+    if (widget.templateId != null) {
+      _loadTemplate();
+    } else if (_portfolioId != null) {
       _loadPortfolio();
     } else {
       _isLoading = false;
+    }
+  }
+  
+  Future<void> _loadTemplate() async {
+    try {
+      final template = await ApiService.get('/templates/${widget.templateId}');
+      
+      setState(() {
+        if (template['content'] != null) {
+          final templateContent = Map<String, dynamic>.from(template['content']);
+          
+          // Check if sections is an array of objects (new format) or strings (old format)
+          final sectionsList = templateContent['sections'] as List?;
+          
+          if (sectionsList != null && sectionsList.isNotEmpty) {
+            // Check if first element is a Map (new format with objects)
+            if (sectionsList.first is Map) {
+              // Transform from new format (array of objects) to old format (map with string keys)
+              _content = {};
+              _sections = [];
+              
+              for (var sectionObj in sectionsList) {
+                if (sectionObj is Map) {
+                  final sectionType = (sectionObj['type'] ?? sectionObj['TYPE'] ?? '').toString().toLowerCase();
+                  if (sectionType.isNotEmpty) {
+                    // Map section types to our section names
+                    String sectionName;
+                    switch (sectionType) {
+                      case 'hero':
+                        // Skip hero sections, they're not supported in our builder
+                        continue;
+                      case 'about':
+                        sectionName = 'about';
+                        _content[sectionName] = {
+                          'title': sectionObj['title'] ?? sectionObj['TITLE'] ?? 'About Me',
+                          'text': sectionObj['content'] ?? sectionObj['CONTENT'] ?? sectionObj['text'] ?? sectionObj['TEXT'] ?? 'Tell your story...',
+                        };
+                        break;
+                      case 'experience':
+                        sectionName = 'experience';
+                        _content[sectionName] = {
+                          'title': sectionObj['title'] ?? sectionObj['TITLE'] ?? 'Experience',
+                          'items': sectionObj['items'] ?? sectionObj['ITEMS'] ?? [],
+                        };
+                        break;
+                      case 'education':
+                        sectionName = 'education';
+                        _content[sectionName] = {
+                          'title': sectionObj['title'] ?? sectionObj['TITLE'] ?? 'Education',
+                          'items': sectionObj['items'] ?? sectionObj['ITEMS'] ?? [],
+                        };
+                        break;
+                      case 'projects':
+                        sectionName = 'projects';
+                        _content[sectionName] = {
+                          'title': sectionObj['title'] ?? sectionObj['TITLE'] ?? 'Projects',
+                          'items': sectionObj['items'] ?? sectionObj['ITEMS'] ?? [],
+                        };
+                        break;
+                      case 'skills':
+                        sectionName = 'skills';
+                        _content[sectionName] = {
+                          'title': sectionObj['title'] ?? sectionObj['TITLE'] ?? 'Skills',
+                          'items': sectionObj['items'] ?? sectionObj['ITEMS'] ?? [],
+                        };
+                        break;
+                      case 'contact':
+                        sectionName = 'contact';
+                        _content[sectionName] = {
+                          'title': sectionObj['title'] ?? sectionObj['TITLE'] ?? 'Contact',
+                          'email': sectionObj['email'] ?? sectionObj['EMAIL'] ?? '',
+                          'phone': sectionObj['phone'] ?? sectionObj['PHONE'] ?? '',
+                          'location': sectionObj['location'] ?? sectionObj['LOCATION'] ?? '',
+                        };
+                        break;
+                      default:
+                        continue; // Skip unknown section types
+                    }
+                    _sections.add(sectionName);
+                  }
+                }
+              }
+            } else {
+              // Old format: sections is array of strings
+              _content = Map<String, dynamic>.from(templateContent);
+              _sections = sectionsList.map((e) => e.toString()).toList();
+            }
+          } else {
+            // No sections, use defaults
+            _content = Map<String, dynamic>.from(templateContent);
+            _sections = ['about', 'experience', 'education', 'projects', 'skills', 'contact'];
+          }
+          
+          // Ensure all standard sections exist and have proper structure
+          final standardSections = ['about', 'experience', 'education', 'projects', 'skills', 'contact'];
+          
+          // First, ensure all sections from template have proper structure
+          for (var sectionName in _sections) {
+            if (sectionName == 'experience' || sectionName == 'education' || sectionName == 'projects' || sectionName == 'skills') {
+              if (_content[sectionName] is Map && !(_content[sectionName] as Map).containsKey('items')) {
+                (_content[sectionName] as Map)['items'] = [];
+              }
+            }
+          }
+          
+          // Then, add any missing standard sections
+          for (var sectionName in standardSections) {
+            if (!_content.containsKey(sectionName) || _content[sectionName] == null) {
+              // Add missing section with default structure
+              switch (sectionName) {
+                case 'about':
+                  _content[sectionName] = {'title': 'About Me', 'text': 'I am a passionate developer...'};
+                  break;
+                case 'experience':
+                  _content[sectionName] = {'title': 'Experience', 'items': []};
+                  break;
+                case 'education':
+                  _content[sectionName] = {'title': 'Education', 'items': []};
+                  break;
+                case 'projects':
+                  _content[sectionName] = {'title': 'Projects', 'items': []};
+                  break;
+                case 'skills':
+                  _content[sectionName] = {'title': 'Skills', 'items': []};
+                  break;
+                case 'contact':
+                  _content[sectionName] = {'title': 'Contact', 'email': '', 'phone': '', 'location': ''};
+                  break;
+              }
+            }
+            // Add to sections list if not already there (maintain template order, append missing ones)
+            if (!_sections.contains(sectionName)) {
+              _sections.add(sectionName);
+            }
+          }
+        } else {
+          // If no content, use defaults
+          _sections = ['about', 'experience', 'education', 'projects', 'skills', 'contact'];
+        }
+        _titleController.text = template['name'] ?? 'New Portfolio';
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load template: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
+        ),
+      );
     }
   }
   
@@ -55,13 +210,52 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
         _slugController.text = portfolio['slug'] ?? '';
         _content = portfolio['content'] ?? _content;
         
-        // Ensure experience section exists in content if not present
-        if (!_content.containsKey('experience')) {
-          _content['experience'] = {'title': 'Experience', 'items': []};
+        // Ensure all standard sections exist in content
+        final standardSections = ['about', 'experience', 'education', 'projects', 'skills', 'contact'];
+        
+        for (var sectionName in standardSections) {
+          if (!_content.containsKey(sectionName) || _content[sectionName] == null) {
+            switch (sectionName) {
+              case 'about':
+                _content[sectionName] = {'title': 'About Me', 'text': 'I am a passionate developer...'};
+                break;
+              case 'experience':
+                _content[sectionName] = {'title': 'Experience', 'items': []};
+                break;
+              case 'education':
+                _content[sectionName] = {'title': 'Education', 'items': []};
+                break;
+              case 'projects':
+                _content[sectionName] = {'title': 'Projects', 'items': []};
+                break;
+              case 'skills':
+                _content[sectionName] = {'title': 'Skills', 'items': []};
+                break;
+              case 'contact':
+                _content[sectionName] = {'title': 'Contact', 'email': '', 'phone': '', 'location': ''};
+                break;
+            }
+          }
         }
         
-        _sections = (_content['sections'] as List?)?.map((e) => e.toString()).toList() ?? 
-                    ['about', 'experience', 'projects', 'skills', 'contact'];
+        // Load sections from content, but ensure all standard sections are included
+        final loadedSections = (_content['sections'] as List?)?.map((e) => e.toString()).toList() ?? [];
+        _sections = [];
+        
+        // Add sections from loaded content first (preserve order)
+        for (var section in loadedSections) {
+          if (standardSections.contains(section) && !_sections.contains(section)) {
+            _sections.add(section);
+          }
+        }
+        
+        // Add any missing standard sections
+        for (var section in standardSections) {
+          if (!_sections.contains(section)) {
+            _sections.add(section);
+          }
+        }
+        
         _isLoading = false;
       });
     } catch (e) {
@@ -123,7 +317,6 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
         children: [
           Container(
             width: 350,
-            color: AppColors.veryLightGray,
             child: _buildEditorPanel(),
           ),
           Expanded(
@@ -138,43 +331,60 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
   }
   
   Widget _buildEditorPanel() {
-    return ListView(
-      padding: EdgeInsets.all(20),
-      children: [
-        Text(
-          'Portfolio Settings',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.dark),
-        ),
-        SizedBox(height: 20),
-        TextField(
-          controller: _titleController,
-          decoration: InputDecoration(
-            labelText: 'Portfolio Title',
-            hintText: 'My Portfolio',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            filled: true,
-            fillColor: AppColors.white,
+    final isDark = _isDarkMode;
+    final backgroundColor = isDark ? AppColors.darkGray : AppColors.veryLightGray;
+    final textColor = isDark ? AppColors.white : AppColors.dark;
+    final secondaryTextColor = isDark ? AppColors.lightGray : AppColors.mediumGray;
+    final mutedTextColor = isDark ? AppColors.mediumGray : AppColors.lightGray;
+    final inputFillColor = isDark ? AppColors.dark : AppColors.white;
+    
+    return Container(
+      color: backgroundColor,
+      child: ListView(
+        padding: EdgeInsets.all(20),
+        children: [
+          Text(
+            'Portfolio Settings',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
           ),
-          onChanged: (v) => setState(() {}),
-        ),
-        SizedBox(height: 16),
-        TextField(
-          controller: _slugController,
-          decoration: InputDecoration(
-            labelText: 'URL Slug',
-            hintText: 'my-portfolio',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            prefixText: 'elevare.com/p/',
-            filled: true,
-            fillColor: AppColors.white,
-            helperText: 'Used in your portfolio URL',
+          SizedBox(height: 20),
+          TextField(
+            controller: _titleController,
+            style: TextStyle(color: textColor),
+            decoration: InputDecoration(
+              labelText: 'Portfolio Title',
+              labelStyle: TextStyle(color: secondaryTextColor),
+              hintText: 'My Portfolio',
+              hintStyle: TextStyle(color: mutedTextColor),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              filled: true,
+              fillColor: inputFillColor,
+            ),
+            onChanged: (v) => setState(() {}),
           ),
-          onChanged: (v) => setState(() {}),
-        ),
+          SizedBox(height: 16),
+          TextField(
+            controller: _slugController,
+            style: TextStyle(color: textColor),
+            decoration: InputDecoration(
+              labelText: 'URL Slug',
+              labelStyle: TextStyle(color: secondaryTextColor),
+              hintText: 'my-portfolio',
+              hintStyle: TextStyle(color: mutedTextColor),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              prefixText: 'elevare.com/p/',
+              prefixStyle: TextStyle(color: secondaryTextColor),
+              filled: true,
+              fillColor: inputFillColor,
+              helperText: 'Used in your portfolio URL',
+              helperStyle: TextStyle(color: mutedTextColor),
+            ),
+            onChanged: (v) => setState(() {}),
+          ),
         SizedBox(height: 32),
         Text(
           'Sections',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.dark),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
         ),
         SizedBox(height: 16),
         ReorderableListView(
@@ -200,19 +410,25 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
           ),
         ),
       ],
+      ),
     );
   }
   
   Widget _buildSectionItem(String section) {
+    final isDark = _isDarkMode;
+    final cardColor = isDark ? AppColors.dark : AppColors.white;
+    final textColor = isDark ? AppColors.white : AppColors.dark;
+    final iconColor = isDark ? AppColors.lightGray : AppColors.mediumGray;
+    
     return Card(
       key: ValueKey(section),
       margin: EdgeInsets.only(bottom: 12),
-      color: AppColors.white,
+      color: cardColor,
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: ListTile(
-        leading: Icon(Icons.drag_indicator, color: AppColors.mediumGray),
-        title: Text(section.toUpperCase(), style: TextStyle(color: AppColors.dark, fontWeight: FontWeight.w500)),
+        leading: Icon(Icons.drag_indicator, color: iconColor),
+        title: Text(section.toUpperCase(), style: TextStyle(color: textColor, fontWeight: FontWeight.w500)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -276,7 +492,38 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
   }
   
   Widget _buildPreviewSection(String section) {
-    final sectionData = _content[section] ?? {};
+    final sectionDataRaw = _content[section];
+    
+    // Handle null or invalid section data
+    if (sectionDataRaw == null || sectionDataRaw is! Map) {
+      return Container(
+        margin: EdgeInsets.only(bottom: 60),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              section.toUpperCase(),
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: _isDarkMode ? AppColors.white : AppColors.dark,
+              ),
+            ),
+            SizedBox(height: 24),
+            Text(
+              'Click edit to add content...',
+              style: TextStyle(
+                fontSize: 16,
+                color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    // Cast to proper type
+    final sectionData = Map<String, dynamic>.from(sectionDataRaw);
     
     return Container(
       margin: EdgeInsets.only(bottom: 60),
@@ -284,7 +531,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            sectionData['title'] ?? section.toUpperCase(),
+            (sectionData['title'] ?? sectionData['TITLE'] ?? section.toUpperCase()).toString(),
             style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
@@ -294,7 +541,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
           SizedBox(height: 24),
           if (section == 'about')
             Text(
-              sectionData['text'] ?? 'Tell visitors about yourself...',
+              (sectionData['text'] ?? sectionData['TEXT'] ?? sectionData['CONTENT'] ?? 'Tell visitors about yourself...').toString(),
               style: TextStyle(
                 fontSize: 16,
                 color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
@@ -303,6 +550,8 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
             )
           else if (section == 'experience')
             _buildExperiencePreview(sectionData)
+          else if (section == 'education')
+            _buildEducationPreview(sectionData)
           else if (section == 'projects')
             _buildProjectsPreview(sectionData)
           else if (section == 'skills')
@@ -311,7 +560,7 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
             _buildContactPreview(sectionData)
           else
             Text(
-              sectionData['text'] ?? 'Click edit to add content...',
+              (sectionData['text'] ?? sectionData['TEXT'] ?? sectionData['CONTENT'] ?? 'Click edit to add content...').toString(),
               style: TextStyle(
                 fontSize: 16,
                 color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
@@ -427,6 +676,105 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
                 SizedBox(height: 4),
                 Text(
                   company,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
+                  ),
+                ),
+              ],
+              if (startDate.isNotEmpty || endDate.isNotEmpty) ...[
+                SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.calendar_today, size: 14, color: Color(0xFF667eea)),
+                    SizedBox(width: 4),
+                    Text(
+                      endDate.isEmpty 
+                          ? startDate 
+                          : '$startDate - $endDate',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
+                      ),
+                    ),
+                    if (location.isNotEmpty) ...[
+                      SizedBox(width: 16),
+                      Icon(Icons.location_on, size: 14, color: Color(0xFF667eea)),
+                      SizedBox(width: 4),
+                      Text(
+                        location,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+              if (description.isNotEmpty) ...[
+                SizedBox(height: 12),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+  
+  Widget _buildEducationPreview(Map<String, dynamic> data) {
+    final educations = (data['items'] as List?) ?? [];
+    if (educations.isEmpty) {
+      return Text(
+        'Click edit to add your education...',
+        style: TextStyle(
+          fontSize: 16,
+          color: _isDarkMode ? Colors.white70 : Colors.grey[700],
+        ),
+      );
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: educations.map<Widget>((edu) {
+        final degree = edu['degree'] ?? '';
+        final institution = edu['institution'] ?? '';
+        final startDate = edu['startDate'] ?? '';
+        final endDate = edu['endDate'] ?? '';
+        final location = edu['location'] ?? '';
+        final description = edu['description'] ?? '';
+        
+        return Container(
+          margin: EdgeInsets.only(bottom: 24),
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _isDarkMode ? Colors.grey[800] : Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (degree.isNotEmpty)
+                Text(
+                  degree,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _isDarkMode ? AppColors.white : AppColors.dark,
+                  ),
+                ),
+              if (institution.isNotEmpty) ...[
+                SizedBox(height: 4),
+                Text(
+                  institution,
                   style: TextStyle(
                     fontSize: 16,
                     color: _isDarkMode ? AppColors.lightGray : AppColors.mediumGray,
@@ -627,6 +975,8 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
       _editAboutSection();
     } else if (section == 'experience') {
       _editExperienceSection();
+    } else if (section == 'education') {
+      _editEducationSection();
     } else if (section == 'projects') {
       _editProjectsSection();
     } else if (section == 'skills') {
@@ -841,6 +1191,186 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
                 experiences[index] = {
                   'company': companyController.text,
                   'position': positionController.text,
+                  'startDate': startDateController.text,
+                  'endDate': endDateController.text,
+                  'location': locationController.text,
+                  'description': descriptionController.text,
+                };
+              });
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF667eea)),
+            child: Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _editEducationSection() {
+    final educations = List<Map<String, String>>.from(
+      (_content['education']['items'] as List?)?.map((e) => Map<String, String>.from(e)) ?? []
+    );
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Edit Education'),
+          content: Container(
+            width: 500,
+            height: 400,
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: educations.length,
+                    itemBuilder: (context, index) {
+                      return Card(
+                        child: ListTile(
+                          title: Text(educations[index]['institution'] ?? 'Education ${index + 1}'),
+                          subtitle: Text(educations[index]['degree'] ?? ''),
+                          trailing: IconButton(
+                            icon: Icon(Icons.delete),
+                            onPressed: () {
+                              setDialogState(() {
+                                educations.removeAt(index);
+                              });
+                            },
+                          ),
+                          onTap: () {
+                            _editEducation(educations, index, setDialogState);
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setDialogState(() {
+                      educations.add({
+                        'degree': '',
+                        'institution': '',
+                        'startDate': '',
+                        'endDate': '',
+                        'location': '',
+                        'description': '',
+                      });
+                    });
+                    _editEducation(educations, educations.length - 1, setDialogState);
+                  },
+                  icon: Icon(Icons.add),
+                  label: Text('Add Education'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF667eea)),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _content['education']['items'] = educations;
+                });
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF667eea)),
+              child: Text('Save All'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  void _editEducation(List<Map<String, String>> educations, int index, StateSetter setDialogState) {
+    final degreeController = TextEditingController(text: educations[index]['degree']);
+    final institutionController = TextEditingController(text: educations[index]['institution']);
+    final startDateController = TextEditingController(text: educations[index]['startDate']);
+    final endDateController = TextEditingController(text: educations[index]['endDate'] ?? '');
+    final locationController = TextEditingController(text: educations[index]['location'] ?? '');
+    final descriptionController = TextEditingController(text: educations[index]['description'] ?? '');
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Edit Education'),
+        content: Container(
+          width: 400,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: institutionController,
+                  decoration: InputDecoration(
+                    labelText: 'Institution *',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: degreeController,
+                  decoration: InputDecoration(
+                    labelText: 'Degree/Certification *',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: startDateController,
+                  decoration: InputDecoration(
+                    labelText: 'Start Date * (e.g., 2018)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: endDateController,
+                  decoration: InputDecoration(
+                    labelText: 'End Date (e.g., 2022 or "Present")',
+                    border: OutlineInputBorder(),
+                    helperText: 'Leave empty if current',
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: locationController,
+                  decoration: InputDecoration(
+                    labelText: 'Location',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: descriptionController,
+                  decoration: InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setDialogState(() {
+                educations[index] = {
+                  'degree': degreeController.text,
+                  'institution': institutionController.text,
                   'startDate': startDateController.text,
                   'endDate': endDateController.text,
                   'location': locationController.text,
@@ -1191,7 +1721,57 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
     );
   }
   
+  Future<bool> _checkAuthentication() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    if (authService.token == null || !authService.isAuthenticated) {
+      final shouldLogin = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Login Required'),
+          content: Text('You need to login or register to save and publish your portfolio. Would you like to login now?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              child: Text('Login / Register'),
+            ),
+          ],
+        ),
+      );
+      
+      if (shouldLogin == true) {
+        // Navigate to auth page with current route as argument so we can return
+        await Navigator.pushNamed(
+          context, 
+          '/auth',
+          arguments: {'returnRoute': '/builder', 'returnArgs': widget.templateId != null ? {'templateId': widget.templateId} : (widget.portfolioId != null ? {'portfolioId': widget.portfolioId} : null)},
+        );
+        // Check again after returning from auth page
+        final authServiceAfter = Provider.of<AuthService>(context, listen: false);
+        if (authServiceAfter.isAuthenticated) {
+          // If we had a template, reload it with the new auth
+          if (widget.templateId != null) {
+            await _loadTemplate();
+          }
+          return true;
+        }
+        return false;
+      }
+      return false;
+    }
+    return true;
+  }
+  
   Future<void> _savePortfolio() async {
+    // Check authentication first
+    if (!await _checkAuthentication()) {
+      return;
+    }
+    
     if (_titleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Please add a portfolio title')),
@@ -1249,6 +1829,11 @@ class _PortfolioBuilderPageState extends State<PortfolioBuilderPage> {
   }
   
   Future<void> _publishPortfolio() async {
+    // Check authentication first
+    if (!await _checkAuthentication()) {
+      return;
+    }
+    
     if (_portfolioId == null) {
       await _savePortfolio();
       if (_portfolioId == null) return;
